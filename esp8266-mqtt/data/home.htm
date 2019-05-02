@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>ESP Editor</title>
+	<link href="style.css" rel="stylesheet"  media="screen">
+	<!-- jquery-3.1.0.slim.min.js jquery-3.4.0.slim.min-->
+	<script type="text/javascript" src="jquery.js"></script>
+	<script type="text/javascript" src="home.js" charset="utf-8"></script>
+</head>
+<body onload="onBodyLoad();">
+	<div id="container">
+		<div id="header">
+			<ul>
+				<li id="mhome" class="left active"><a href="#" onclick="set('home')">Home</a></li>
+				<!-- li class="left active"><a href="edit.htm">Edit</a></li -->
+				<li id="mconfig" class="left"><a href="#" onclick="set('config')">Configure</a></li>
+				<li id="mabout" class="right"><a href="#" onclick="set('about')">About</a></li>
+				<li class="right"><a href="upload">Upload</a></li>
+				<li class="right"><a href="home.htm?restart=1">Restart</a></li>
+			</ul>
+			<h1><center>Home - <span id="myTitle">+title+</span></center></h1>
+		</div>
+		<div id="wrapper">
+			<div id="home" class="content">
+				<h2>Webserver on the ESP8266 chip for configuration</h2>
+				<p>Sketch is buildt on the arduino platform 1.8.2 from arduino.cc</p>
+				<p>In preferences add a new Boardmanager from <code>http://arduino.esp8266.com/package_esp8266com_index.json</code></p>
+				<p>Install „ESP8266 Sketch Data Upload“</p>
+			</div>
+			<div id="config" class="content" style="display: none;">
+				<div id="controls" style="display: block; border: 1px solid rgb(68, 68, 68); padding: 5px; margin: 5px; width: 362px; background-color: rgb(238, 238, 238);">
+					<div id="noAccessPoints">
+						No access points found.
+					</div>
+					<div id="AccessPoints">
+						<form method="post" action="setConfig">
+							<label>Version :<br><input type="text" name="pVersion" id="pVersion"></label><br><br>
+						  <fieldset>
+							<legend>Wifi:</legend>
+							<label>To connect to a WiFi network, please select a network</label>
+							<div  class="listwlan" name="listwlan" id="listwlan"></div>
+							<label>WiFi password (if required):<br><input type="text" name="password" id="password"></label><br><br>
+						  </fieldset>
+						  <fieldset>
+							<legend>MQTT:</legend>
+							<label>Server:<br><input type="text" name="mqtt_server"></label><br>
+							<label>Port:<br><input type="text" name="mqtt_port"></label><br>
+							<label>User (if required):<br><input type="text" name="mqtt_user"></label><br>
+							<label>Passwort (if required):<br><input type="text" name="mqtt_pass"></label><br>
+							<label>Client-id:<br><input type="text" name="mClient"></label><br>
+						  </fieldset>
+						  <fieldset>
+							<legend>MQTT-themes:</legend>
+							<label>Theme-prefix:<br><input type="text" name="mPre"></label><br>
+							<label>Subscription theme:<br><input type="text" name="mSub"></label><br>
+							<label>Lwt theme:<br><input type="text" name="mLwt"></label><br><br>
+						  </fieldset>
+						  <fieldset>
+							<legend>Timer:</legend>
+							<label>Timer 1 (publish messages in msec):<br><input type="text" name="timerMsec0"></label><br>
+							<label>Timer 2 (read sensors in msec):<br><input type="text" name="timerMsec1"></label><br><br>
+							<label>Timer 3 (reconnect in msec):<br><input type="text" name="timerMsec2"></label><br><br>
+						  </fieldset>
+						  <fieldset>
+							<legend>IoT:</legend>
+							<label>Reed 1:<br><input type="text" name="reed1"></label><br>
+							<label>Reed 2:<br><input type="text" name="reed2"></label><br><br>
+							<label>Analog Schwelle (0 -> inaktiv):<br><input type="text" name="analog"></label><br><br>
+						  </fieldset>
+						  <input type="submit" value="Save">
+						</form>
+					</div>
+				</div>
+			</div>
+			<div id="about" class="content" style="display: none;">
+				<p></p>
+				<p>inspired by</p>
+				<ul>
+				<li>FSWebServer - Example Pages, Copyright (c) 2015 Hristo Gochkov. All rights reserved. Parts of the ESP8266WebServer library
+				for Arduino environment are used.</li>
+				<li></li>
+				<li><a href="http://www.oswt.co.uk/xhtml_css_layouts/style/LayoutGala19.html">Open Source Web Templates</a></li>
+				<li><a href="http://www.w3schools.com/css/css_navbar.asp">w3schools.com</a></li>
+				<li><a href="https://ace.c9.io/">Ace</a> is an embeddable code editor written in JavaScript.</li>
+				<li><a href="http://matthiasschuetz.com/css-sticky-footer">Sticky Footer</a>: Fußleiste, die sich immer am unteren Ende der Seite befindet,
+				aber bei langen Texten ganz unten</li>
+				</ul>
+			</div>
+
+		</div>
+		<div id="extra">
+			<div id="contentPeriod" class="controls">
+				<label>Period (ms):</label>
+				<input type="number" id="refresh-rate"/><br/>
+				<input type="button" id="start-button" value="Start"/>
+				<input type="button" id="stop-button" value="Stop"/>
+			</div>
+			<div id="n_avigation">
+				<p>Status: <span id="myStatus">+WiFi.status+</span></p>
+			</div>
+			<div id="contentBmp280" class="controls">
+					<legend>BMP 280 (<span id="bmpTime">nicht vorhanden</span>)</legend>
+					Temperatur: <span id="bmpT">kein Wert</span> °C<br />
+					Luftdruck: <span id="bmpP">kein Wert</span> mmHg<br />
+					Luftfeuchte: <span id="bmeH">kein Wert</span> % <br />
+			</div>
+			<div id="contentBh1750" class="controls">
+					<legend>BH 1750 FVI (<span id="bh1750Time">nicht vorhanden</span>)</legend>
+					Lichtstärke: <span id="bh1750Lux">kein Wert</span> Lux<br />
+			</div>
+			<div id="contentDs0" class="controls">
+					<legend>DS1820 (<span id="dsTime0">nicht vorhanden</span>)</legend>
+					Temperatur: <span id="dsT0">kein Wert</span> °C<br />
+			</div>
+			<div id="contentDs1" class="controls">
+					<legend>DS1820 (<span id="dsTime1">nicht vorhanden</span>)</legend>
+					Temperatur: <span id="dsT1">kein Wert</span> °C<br />
+			</div>
+			<div id="contentPins" class="controls">
+					<legend>Digital-/Analog-Pins</legend>
+					Reed1: <span id="reed1state">kein Wert</span><br />
+					Reed2: <span id="reed2state">kein Wert</span><br />
+					Analog: <span id="analogstate">kein Wert</span><br />
+			</div>
+		</div>
+		<div id="minheight"></div>
+		<div id="footer"><center><p>ESP8266 webconfiguration and MQTT-client</p></center>
+		</div>
+	</div>
+</body>
+</html>
