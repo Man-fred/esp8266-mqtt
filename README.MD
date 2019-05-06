@@ -10,20 +10,20 @@ Das Projekt wird in einer **[FHEM](https://fhem.de/fhem_DE.html)**-Installation 
  - **Over-the-air-Updates** sind möglich, wenn auf dem MQTT-Server auch ein Webserver mit PHP-Unterstützung installiert ist.
 ## Bibliotheken
 Folgende Bibliotheken sind eingebunden, aber nicht über dieses Repository herunterladbar: 
-**ESP8266WiFi** für die Grundfunktionalität WLan
-**ESP8266httpUpdate** // enables OTA updates
-**ESP8266WebServer** // enables webconfig
-**ESP8266mDNS**
-**FS** // enables storing webpages in EEPROM, not in sketch
-**EEPROM** // enables storing config-data in EEPROM
-**WiFiUdp** // enables NTP / RTC
+ **ESP8266WiFi** für die Grundfunktionalität WLan
+ **ESP8266httpUpdate** // enables OTA updates
+ **ESP8266WebServer** // enables webconfig
+ **ESP8266mDNS**
+ **FS** // enables storing webpages in EEPROM, not in sketch
+ **EEPROM** // enables storing config-data in EEPROM
+ **WiFiUdp** // enables NTP / RTC
 
-**PubSubClient**  // MQTT
-**Wire** // serial monitor
-**BMP280** // IC BMP280
-**BH1750FVI** // IC BH1750
-**OneWire** // 1-wire
-**DallasTemperature** // 1-wire temperature
+ **PubSubClient**  // MQTT, [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient), MIT-Lizenz
+ **Wire** // serial monitor
+ **BMP280** // IC BMP280
+ **BH1750FVI** // IC BH1750
+ **OneWire** // 1-wire
+ **DallasTemperature** // 1-wire temperature
 
 # Lizenz
 Lizensiert unter GNU General Public License v3.0-or-later

@@ -5,8 +5,11 @@ const debug = false;
 // Dateiname: Vnn-nn-nn.<variante3>.<typ7>.bin
 $db = array(
 // MTQQ
-    "ino.nodemcu" => "V01-06-01.ino.nodemcu.bin",
-    "ino.d1_mini" => "V01-06-01.ino.d1_mini.bin",
+    "ino.nodemcu"              => "V01-06-12.esp8266-mqtt.ino.nodemcu.bin",
+    "esp8266-mqtt.nodemcu"     => "V01-06-12.esp8266-mqtt.ino.nodemcu.bin",
+    "ino.d1_mini"              => "V01-06-12.esp8266-mqtt.ino.d1_mini.bin",
+    "esp8266-mqtt.d1_mini"     => "V01-06-12.esp8266-mqtt.ino.d1_mini.bin",
+    "esp8266-mqtt.ino.d1_mini" => "V01-06-12.esp8266-mqtt.ino.d1_mini.bin",
 // Relais-Webschalter mit IIC
     "iic.nodemcu" => "V00-04-02.iic.nodemcu.bin",
     "iic.d1_mini" => "V01-00-03.iic.d1_mini.bin",
@@ -90,31 +93,44 @@ if (
 $esp_firmware = "";
 $esp_key = "";
 $esp_version = $_SERVER['HTTP_X_ESP8266_VERSION'];
-if (isset($db[$_SERVER['HTTP_X_ESP8266_STA_MAC']])) {
-    $esp_key = $_SERVER['HTTP_X_ESP8266_STA_MAC'];
+
+$esp_key = $_SERVER['HTTP_X_ESP8266_STA_MAC'];
+if (isset($db[$esp_key])) {
+	// obsolet, ganz fruehe Version
     $esp_firmware = $db[$esp_key];
-} else if (isset($db[substr($esp_version, 10, 11)])) {
-    $esp_key = substr($esp_version, 10, 11);
-    $esp_firmware = $db[$esp_key];
+}
+if ($esp_firmware == "") {
+	$esp_key = substr($esp_version, 10, 11);
+	// obsolet ab V01-06-05
+	if (isset($db[$esp_key])) {
+		$esp_firmware = $db[$esp_key];
+	}
+}
+if ($esp_firmware == "") {
+	$esp_key = substr($esp_version, 10);
+	if (isset($db[$esp_key])) {
+		$esp_firmware = $db[$esp_key];
+	}
 }
 
 if ($esp_firmware != "") {
     if ($esp_firmware > $esp_version) {
         if (file_exists($esp_firmware)) {
+            file_put_contents("update.log", $timestamp . " Start update, client " . $_SERVER['REMOTE_ADDR']." Update " . $esp_firmware . " started", FILE_APPEND);
             sendFile($esp_firmware);
-            file_put_contents("update.log", $timestamp . " Update " . $esp_firmware . " ok", FILE_APPEND);
+            file_put_contents("update.log", $timestamp . " Start update, client " . $_SERVER['REMOTE_ADDR']." Update " . $esp_firmware . " finished", FILE_APPEND);
         } else {
-            file_put_contents("update.log", $timestamp . " Abort update, file " . $esp_firmware . " not found", FILE_APPEND);
+            file_put_contents("update.log", $timestamp . " Start update, client " . $_SERVER['REMOTE_ADDR']." Abort update, file " . $esp_firmware . " not found", FILE_APPEND);
             header($_SERVER["SERVER_PROTOCOL"] . ' 500 no file for ESP MAC', true, 500);
         }
     } elseif ($esp_firmware < $esp_version) {
-        file_put_contents("update.log", $timestamp . " Abort update, version on chip (" . $esp_version . ") is newer as (" . $esp_firmware . ")", FILE_APPEND);
+        file_put_contents("update.log", $timestamp ." Start update, client " . $_SERVER['REMOTE_ADDR']. " Abort update, version on chip (" . $esp_version . ") is newer as (" . $esp_firmware . ")", FILE_APPEND);
         header($_SERVER["SERVER_PROTOCOL"] . ' 304 version on chip is newer', true, 304);
     } else {
-        file_put_contents("update.log", $timestamp . " Abort update " . $esp_firmware . " not modified", FILE_APPEND);
+        file_put_contents("update.log", $timestamp ." Start update, client " . $_SERVER['REMOTE_ADDR']. " Abort update " . $esp_firmware . " not modified", FILE_APPEND);
         header($_SERVER["SERVER_PROTOCOL"] . ' 304 Not Modified', true, 304);
     }
 } else {
-    file_put_contents("update.log", $timestamp . " Abort update, no version for ESP (" . $esp_key . ") in table", FILE_APPEND);
+    file_put_contents("update.log", $timestamp ." Start update, client " . $_SERVER['REMOTE_ADDR']. " Abort update, no version for ESP (" . $esp_key . ") in table", FILE_APPEND);
     header($_SERVER["SERVER_PROTOCOL"] . ' 500 no version for ESP ' . $esp_version, true, 500);
 }

@@ -25,7 +25,7 @@
  *  V01-05 : Arduino 1.8.2,  
  *  V01-06 : Arduino 1.8.9,  
  */
-String mVersionNr = "V01-06-01.ino.";
+String mVersionNr = "V01-06-12.esp8266-mqtt.ino.";
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
@@ -65,9 +65,9 @@ const byte ledPin = BUILTIN_LED;
   String mVersionBoard = "unknown";
 #endif
 
-// Reed-Kontakt fuer Alarmanlage
+// Reed-Kontakt 1 fuer Alarmanlage
 #define reed1In D7
-// Sabotage-Linie fuer Alarmanlage
+// Reed-Kontakt 2 fuer Alarmanlage
 #define reed2In D6
 
 // Parameters for WiFi and MQTT
@@ -154,10 +154,14 @@ byte dsAddr[MAX_DS_SENSORS][8];
 float dsTemp[MAX_DS_SENSORS];
 unsigned long dsTime[MAX_DS_SENSORS];
 
-int reed1State = -1; // undefined
+int reed1State = 0; // undefined
 int reed1Timer = 0; // undefined
-int reed2State = -1; // undefined
+int reed2State = 0; // undefined
 int reed2Timer = 0; // undefined
+int reedAlarmstate = 0; // 0: not armed, 1: armed
+int reedActor = 0;      // 0: no action, 1: internal, 2: light, 3: external sirene
+int reedState = 0; // undefined
+byte reedAlarmtoggle = 0;
 
 int analogWert = 0;
 int analogState = 0; // Analog < 512 -> 0, > 511 -> 1
@@ -209,9 +213,9 @@ class MyTimer {
   public:
     // MyTimer();
     
-    void begin(int period, void(*func)())
+    void begin(int period, void(*func)(), boolean activated = true)
     {
-      aActive = true;
+      aActive = activated;
       aPeriod = period;
       aCallback = func;
       // max. unsigned int to start the timer immediately
@@ -245,10 +249,12 @@ MyTimer timerSensors; // collect sensors delay
 MyTimer timerReconnect; // reconnect wifi delay
 MyTimer timerNtp; // ntp-loop 
 MyTimer timerRestart; // restart delay in websession
-MyTimer timerAlarm; // alarm sensors delay
+MyTimer timerAlarmloop; // alarm sensors delay
+MyTimer timerAlarmstate; // blink LED for local alarm
 
 String mPayloadKey[MAX_MESSAGES];
 String mPayloadValue[MAX_MESSAGES];
+boolean mPayloadRetain[MAX_MESSAGES];
 int mPayloadSet = 0;
 int mPayloadPublish = 0;
 
@@ -314,12 +320,13 @@ void getPara() {
   EEPROM.end();
 }
 
-void mqttSet(String key, String value) {
+void mqttSet(String key, String value, boolean retain = true) {
   mPayloadKey[mPayloadSet] = String(para.mPre);
   mPayloadKey[mPayloadSet] += para.mClient;
   mPayloadKey[mPayloadSet] += "/";
   mPayloadKey[mPayloadSet] += key;
   mPayloadValue[mPayloadSet] = value;
+  mPayloadRetain[mPayloadSet] = retain;
   DEBUG3_PRINTLN("mqttSet  " + String(mPayloadSet) + ": " + mPayloadKey[mPayloadSet] + " <" + value + ">");
   mPayloadSet++;
   if (mPayloadSet > MAX_MESSAGES-1) {
@@ -329,7 +336,7 @@ void mqttSet(String key, String value) {
 // Sends a payload to the broker
 void mqttSend() {
   if (mPayloadKey[mPayloadPublish] != "") {
-    client.publish(mPayloadKey[mPayloadPublish].c_str(), mPayloadValue[mPayloadPublish].c_str(), true);
+    client.publish(mPayloadKey[mPayloadPublish].c_str(), mPayloadValue[mPayloadPublish].c_str(), mPayloadRetain[mPayloadSet]);
     DEBUG3_PRINTLN("mqttSend " + String(mPayloadPublish) + ": " + mPayloadKey[mPayloadPublish] + " <" + mPayloadValue[mPayloadPublish] + ">");
     mPayloadKey[mPayloadPublish] = "";
     mPayloadPublish++;
@@ -474,27 +481,59 @@ void getData() {
   }
 }
 
+void setAlarmLED() {
+  if ( ( reedActor == 0 && (reedAlarmtoggle++ & 7) == 1)
+     ||((reedActor & 1) && (reedAlarmtoggle++ & 7) > 3)
+     ||((reedActor & 2) && (reedAlarmtoggle++ & 7) > 0)
+     ||( reedActor & 4) ){
+    digitalWrite(ledPin, LOW);
+  }else{
+    digitalWrite(ledPin, HIGH);
+  }
+  //DEBUG1_PRINTLN("reedLED "+String(reedAlarmtoggle & 3)+" "+String(reedAlarmtoggle));
+}
+
+void setAlarm(){
+  if ((reedState > 0 && reedAlarmstate > 0) || reedActor > 0) {
+    // start local alarm
+    timerAlarmstate.activate();
+  } else {
+    timerAlarmstate.deactivate();
+    digitalWrite(ledPin, HIGH);
+  }
+}
+
+void setReed(int nr, int state) {
+  mqttSet("reed"+String(nr), String(state));
+  DEBUG1_PRINTLN("reed"+String(nr)+" "+String(state));
+  if (nr > 1) 
+    nr = (1 << (nr-1));
+  if (state == 0) {
+    reedState = reedState & ~nr;
+  }else {
+    reedState = reedState | nr;
+  }
+  setAlarm();
+  //DEBUG1_PRINTLN("reedstate "+String(reedState));
+}
+
 void getAlarm(){
   if (para.reed1) {
     int reed1Temp = digitalRead(reed1In);
-    if ((reed1Temp != reed1State && millis() - reed1Timer > 100) | (millis() - reed1Timer > 60000))
+    if ((reed1Temp != reed1State && millis() - reed1Timer > 100) | (millis() - reed1Timer > 600000))
     {
       reed1Timer = millis();
       reed1State = reed1Temp;
-      mqttSet("reed1", String(reed1State));
-      DEBUG1_PRINT("reed1 ");
-      DEBUG1_PRINTLN(reed1State);
+      setReed(1,reed1State);
     }
   }
   if (para.reed2) {
     int reed2Temp = digitalRead(reed2In);
-    if ((reed2Temp != reed2State && millis() - reed2Timer > 100) | (millis() - reed2Timer > 60000))
+    if ((reed2Temp != reed2State && millis() - reed2Timer > 100) | (millis() - reed2Timer > 600000))
     {
       reed2Timer = millis();
       reed2State = reed2Temp;
-      mqttSet("reed2", String(reed2State));
-      DEBUG1_PRINT("reed2 ");
-      DEBUG1_PRINTLN(reed2State);
+      setReed(2,reed2State);
     }
   }
   if (para.analog){
@@ -506,12 +545,54 @@ void espRestart() {
   ESP.restart();
 }
 
+void i2cScan(boolean mqtt = false) {
+  byte error, address;
+  int nDevices;
+  String msg,addr;
+  
+  if (!mqtt) DEBUG_PRINTLN("Scanning...");
+  nDevices = 0;
+  for (address = 1; address < 127; address++)
+  {
+    // The i2c scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    addr = (address < 16 ? "0" : "") + String(address, HEX);
+    
+    if (error == 0){
+      msg = "I2C device found at address 0x";
+      nDevices++;
+    } else if (error == 4){
+      msg = "Unknown error at address 0x";
+    }
+    if (error == 0 || error == 4){
+      if (mqtt) {
+        mqttSet("debug/i2c/"+addr, msg+addr, false);
+      } else {
+        DEBUG_PRINTLN(msg+addr);
+      }
+    }
+  }
+  if (nDevices == 0) {
+    msg = "No I2C devices found";
+    if (mqtt) {
+      mqttSet("debug/i2c/00", msg, false);
+    } else {
+      DEBUG_PRINTLN(msg);
+    }
+  }
+  else {
+    if (!mqtt) DEBUG_PRINTLN("Done.\n");
+  }
+}
+
 void callbackMSub(byte* payload, unsigned int mLength) {
   for (int i = 0; i < mLength; i++) {
     char receivedChar = (char)payload[i];
     DEBUG_PRINT(receivedChar);
     if (receivedChar == '0') {
-      // ESP8266 Huzzah outputs are "reversed"
       digitalWrite(ledPin, HIGH);
     }
     if (receivedChar == '1') {
@@ -527,11 +608,13 @@ void callbackMSub(byte* payload, unsigned int mLength) {
       espRestart();
     }
     if (receivedChar == '5') {
+      mqttSet("set/S1", "6");
+
       timerMqtt.deactivate();
       timerSensors.deactivate();
       timerReconnect.deactivate();
       timerNtp.deactivate();
-      timerAlarm.deactivate();
+      timerAlarmloop.deactivate();
       t_httpUpdate_return ret = ESPhttpUpdate.update(para.mqtt_server, 80, "/esp8266/ota.php", (mVersionNr+mVersionBoard).c_str());
       switch (ret) {
         case HTTP_UPDATE_FAILED:
@@ -554,7 +637,10 @@ void callbackMSub(byte* payload, unsigned int mLength) {
       timerSensors.activate();
       timerReconnect.activate();
       timerNtp.activate();
-      timerAlarm.activate();
+      timerAlarmloop.activate();
+    }
+    if (receivedChar == 'i') {
+      i2cScan(true);
     }
   }
 }
@@ -573,6 +659,48 @@ void callbackS2(byte* payload, unsigned int mLength) {
   }
 }
 
+void setA1(byte* payload) {
+  char receivedChar = (char)payload[0];
+  if (receivedChar == 'a') {
+    reedAlarmstate = 1;
+  }
+  if (receivedChar == 'd') {
+    reedAlarmstate = 0;
+  }
+  setAlarm();
+}
+
+void setA2(byte* payload) {
+  char receivedChar = (char)payload[0];
+  if (receivedChar == '0') {
+    reedActor = reedActor & ~1;
+  }
+  if (receivedChar == '1') {
+    reedActor = reedActor | 1;
+  }
+  setAlarm();
+}
+void setA3(byte* payload) {
+  char receivedChar = (char)payload[0];
+  if (receivedChar == '0') {
+    reedActor = reedActor & ~2;
+  }
+  if (receivedChar == '1') {
+    reedActor = reedActor | 2;
+  }
+  setAlarm();
+}
+void setA4(byte* payload) {
+  char receivedChar = (char)payload[0];
+  if (receivedChar == '0') {
+    reedActor = reedActor & ~4;
+  }
+  if (receivedChar == '1') {
+    reedActor = reedActor | 4;
+  }
+  setAlarm();
+}
+
 void callbackOSS(byte* payload, unsigned int mLength) {
   if (mLength == 1 and payload[0] < 5) {
     bmp.setOversamplingP(payload[0]);
@@ -587,53 +715,18 @@ void callback(char* topic, byte* payload, unsigned int mLength) {
     callbackMSub(payload, mLength);
   } else if (String(topic).endsWith("/S2")) {
     callbackS2(payload, mLength);
+  } else if (String(topic).endsWith("/A1")) {
+    setA1(payload);
+  } else if (String(topic).endsWith("/A2")) {
+    setA2(payload);
+  } else if (String(topic).endsWith("/A3")) {
+    setA3(payload);
+  } else if (String(topic).endsWith("/A4")) {
+    setA4(payload);
   } else if (String(topic).endsWith("/OSS")) {
     callbackOSS(payload, mLength);
   }
   mqttSet("ack", ack);
-}
-
-void i2cScan() {
-  byte error, address;
-  int nDevices;
-
-  DEBUG_PRINTLN("Scanning...");
-
-  nDevices = 0;
-  for (address = 1; address < 127; address++)
-  {
-    // The i2c scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-
-    if (error == 0)
-    {
-      DEBUG_PRINT("I2C device found at address 0x");
-      if (address < 16) {
-        DEBUG_PRINT("0");
-      }
-      DEBUG_PRINT(address, HEX);
-      DEBUG_PRINTLN(" !");
-
-      nDevices++;
-    }
-    else if (error == 4)
-    {
-      DEBUG_PRINT("Unknown error at address 0x");
-      if (address < 16) {
-        DEBUG_PRINT("0");
-      }
-      DEBUG_PRINTLN(address, HEX);
-    }
-  }
-  if (nDevices == 0) {
-    DEBUG_PRINTLN("No I2C devices found\n");
-  }
-  else {
-    DEBUG_PRINTLN("Done.\n");
-  }
 }
 
 void readInput() {
@@ -649,9 +742,11 @@ void readInput() {
     //See more at: http://www.esp8266.com/viewtopic.php?f=29&t=8194#sthash.mj02URAZ.dpuf
     SPIFFS.info(fs_info);
     Serial.println("totalBytes " + String(fs_info.totalBytes));
+  } else if (inser == 'i') {
+    i2cScan();
   } else if (inser == 'l') {
     listSpiffs();
-  } else if (inser == 'i') {
+  } else if (inser == 'w') {
     Serial.println("");
     Serial.println("Mit Wlan verbunden");
     Serial.print("IP Adresse: ");
@@ -696,7 +791,7 @@ void setup(){
     i2cScan();
   }
   dsActive = dsSetup();
-  timerAlarm.begin(1000, getAlarm);
+  timerAlarmloop.begin(1000, getAlarm);
   timerSensors.begin(para.timerMsec[1], getData);
   
   if (para.pVersion > 0){ // && ( para.checksum == 123456 || para.checksum = 999999) {
@@ -717,10 +812,13 @@ void setup(){
     yield();
     timerNtp.begin(86400000, getNTP);
   }
+  timerAlarmstate.begin(333, setAlarmLED, false);
 }
 
 void loop(){
-  timerAlarm.update();
+  timerAlarmloop.update();
+  yield();
+  timerAlarmstate.update();
   yield();
   timerSensors.update();
   yield();

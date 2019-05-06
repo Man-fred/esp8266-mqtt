@@ -24,19 +24,10 @@ void wifiStaSetup() {
           DEBUG_PRINT("0");
         }
         DEBUG_PRINT(para.mMac[i], HEX);
-        //if (i > 2) {                                                       //this line needs cleaning up.
-        //  if (para.mMac[i] < 0x10) {
-        //    mClient = mClient + "0";
-        //  }
-        //  mClient = mClient + String(para.mMac[i], HEX);
-        //}
       }
-      //mClient.toUpperCase();
-      //if (mClient == "ESPD612C8") { mClient = "14029512"; }
       DEBUG_PRINT(", Client: ");
       DEBUG_PRINT(para.mClient);
       DEBUG_PRINTLN(" ok");
-      mqttSet("IP", WiFi.localIP().toString());
       wifiStation = true;
     }
   }
@@ -134,6 +125,7 @@ void mqttReconnect() {
         mqttSet("Heap", String(ESP.getFreeHeap()));
         mqttSet("ChipId", String(ESP.getChipId()));
         mqttSet("Version", mVersionNr+mVersionBoard);
+        mqttSet("IP", WiFi.localIP().toString());
         //DEBUG_PRINTLN(ESP.getChipId());
       } else {
         mqttFailed();      
@@ -141,5 +133,3 @@ void mqttReconnect() {
     }
   }
 }
-
-
