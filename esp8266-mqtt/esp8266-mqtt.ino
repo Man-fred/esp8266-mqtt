@@ -25,7 +25,7 @@
  *  V01-05 : Arduino 1.8.2,  
  *  V01-06 : Arduino 1.8.9,  
  */
-String mVersionNr = "V01-06-12.esp8266-mqtt.ino.";
+String mVersionNr = "V01-06-13.esp8266-mqtt.ino.";
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
@@ -51,24 +51,32 @@ const byte ledPin = BUILTIN_LED;
 #ifdef ARDUINO_ESP8266_NODEMCU
   const byte board = 1;
   const byte ONE_WIRE_BUS = D4;
+  const byte reed1In = D7;
+  const byte reed2In = D6;
   const byte S2Pin = D3; 
+  const byte S3Pin = D5; 
+  const byte S4Pin = D8; 
   String mVersionBoard = "nodemcu";
 #elif ARDUINO_ESP8266_WEMOS_D1MINI
   const byte board = 2;
   const byte ONE_WIRE_BUS = D3;
-  const byte S2Pin = D4; 
+  const byte reed1In = D7;
+  const byte reed2In = D6;
+  const byte S2Pin = D0; 
+  const byte S3Pin = D5; 
+  const byte S4Pin = D8; 
   String mVersionBoard = "d1_mini";
 #else
   const byte board = 3;
   const byte ONE_WIRE_BUS = D4;
+  const byte reed1In = D7;
+  const byte reed2In = D6;
   const byte S2Pin = D3; 
+  const byte S3Pin = D5; 
+  const byte S4Pin = D8; 
   String mVersionBoard = "unknown";
 #endif
 
-// Reed-Kontakt 1 fuer Alarmanlage
-#define reed1In D7
-// Reed-Kontakt 2 fuer Alarmanlage
-#define reed2In D6
 
 // Parameters for WiFi and MQTT
 struct Parameter {
@@ -501,6 +509,9 @@ void setAlarm(){
     timerAlarmstate.deactivate();
     digitalWrite(ledPin, HIGH);
   }
+  digitalWrite(S2Pin, reedActor & 1);
+  digitalWrite(S3Pin, reedActor & 2);
+  digitalWrite(S4Pin, reedActor & 4);
 }
 
 void setReed(int nr, int state) {
@@ -646,16 +657,12 @@ void callbackMSub(byte* payload, unsigned int mLength) {
 }
 
 void callbackS2(byte* payload, unsigned int mLength) {
-  for (int i = 0; i < mLength; i++) {
-    char receivedChar = (char)payload[i];
-    DEBUG_PRINT(receivedChar);
-    if (receivedChar == '0') {
-      // ESP8266 Huzzah outputs are "reversed"
-      digitalWrite(S2Pin, HIGH);
-    }
-    if (receivedChar == '1') {
-      digitalWrite(S2Pin, LOW);
-    }
+  char receivedChar = (char)payload[0];
+  if (receivedChar == '1') {
+    digitalWrite(S2Pin, HIGH);
+  }
+  if (receivedChar == '0') {
+    digitalWrite(S2Pin, LOW);
   }
 }
 
@@ -768,6 +775,8 @@ void setup(){
   pinMode(reed1In, INPUT_PULLUP);
   pinMode(reed2In, INPUT_PULLUP);
   pinMode(S2Pin, OUTPUT);
+  pinMode(S3Pin, OUTPUT);
+  pinMode(S4Pin, OUTPUT);
   pinMode(A0, INPUT);
   // default: LED off, Relais off
   digitalWrite(ledPin, HIGH);
