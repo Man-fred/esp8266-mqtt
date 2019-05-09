@@ -25,7 +25,7 @@
  *  V01-05 : Arduino 1.8.2,  
  *  V01-06 : Arduino 1.8.9,  
  */
-String mVersionNr = "V01-06-13.esp8266-mqtt.ino.";
+String mVersionNr = "V01-06-14.esp8266-mqtt.ino.";
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
@@ -102,6 +102,10 @@ struct Parameter {
   int analog;
   unsigned int checksum;
 };
+// noch in Parameter aufnehmen
+bool GpioRelaisOn = false;
+bool GpioLedOn = false;
+bool GpioReedOn = false;
 
 /* Set the tm_t fields for the local time. */
 struct NtpTime {
@@ -490,13 +494,10 @@ void getData() {
 }
 
 void setAlarmLED() {
-  if ( ( reedActor == 0 && (reedAlarmtoggle++ & 7) == 1)
-     ||((reedActor & 1) && (reedAlarmtoggle++ & 7) > 3)
-     ||((reedActor & 2) && (reedAlarmtoggle++ & 7) > 0)
-     ||( reedActor & 4) ){
-    digitalWrite(ledPin, LOW);
+  if ((reedAlarmtoggle++ & 7) == 1){
+    digitalWrite(ledPin, GpioLedOn);
   }else{
-    digitalWrite(ledPin, HIGH);
+    digitalWrite(ledPin, !GpioLedOn);
   }
   //DEBUG1_PRINTLN("reedLED "+String(reedAlarmtoggle & 3)+" "+String(reedAlarmtoggle));
 }
@@ -507,11 +508,11 @@ void setAlarm(){
     timerAlarmstate.activate();
   } else {
     timerAlarmstate.deactivate();
-    digitalWrite(ledPin, HIGH);
+    digitalWrite(ledPin, !GpioLedOn);
   }
-  digitalWrite(S2Pin, reedActor & 1);
-  digitalWrite(S3Pin, reedActor & 2);
-  digitalWrite(S4Pin, reedActor & 4);
+  digitalWrite(S2Pin, (reedActor & 1) ? GpioRelaisOn : !GpioRelaisOn);
+  digitalWrite(S3Pin, (reedActor & 2) ? GpioRelaisOn : !GpioRelaisOn);
+  digitalWrite(S4Pin, (reedActor & 4) ? GpioRelaisOn : !GpioRelaisOn);
 }
 
 void setReed(int nr, int state) {
@@ -656,13 +657,13 @@ void callbackMSub(byte* payload, unsigned int mLength) {
   }
 }
 
-void callbackS2(byte* payload, unsigned int mLength) {
+void callbackS2(byte* payload) {
   char receivedChar = (char)payload[0];
   if (receivedChar == '1') {
-    digitalWrite(S2Pin, HIGH);
+    digitalWrite(S2Pin, GpioRelaisOn);
   }
   if (receivedChar == '0') {
-    digitalWrite(S2Pin, LOW);
+    digitalWrite(S2Pin, !GpioRelaisOn);
   }
 }
 
@@ -721,7 +722,7 @@ void callback(char* topic, byte* payload, unsigned int mLength) {
   if (String(topic).endsWith("/S1")) {
     callbackMSub(payload, mLength);
   } else if (String(topic).endsWith("/S2")) {
-    callbackS2(payload, mLength);
+    callbackS2(payload);
   } else if (String(topic).endsWith("/A1")) {
     setA1(payload);
   } else if (String(topic).endsWith("/A2")) {
