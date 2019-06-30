@@ -1,7 +1,5 @@
 void wifiSetup(boolean station) {
   WiFi.persistent(false);
-  WiFi.setSleepMode(WIFI_LIGHT_SLEEP);
-  WiFi.setPhyMode(WIFI_PHY_MODE_11N);
   WiFi.setAutoReconnect(false);
   WiFi.mode(WIFI_OFF);
 
@@ -14,6 +12,8 @@ void wifiSetup(boolean station) {
 void wifiStaSetup() {
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.mode(WIFI_STA);
+    WiFi.setSleepMode(WIFI_NONE_SLEEP);//(WIFI_LIGHT_SLEEP);
+    WiFi.setPhyMode(WIFI_PHY_MODE_11N);
     //WiFi.disconnect();
     wifiStation = false;
     int i = 0;
@@ -40,8 +40,8 @@ void wifiStaSetup() {
       DEBUG_PRINTLN(" ok");
       WiFi.setAutoReconnect(true);
       wifiStation = true;
-      mqttSet("IP", WiFi.localIP().toString());
-      mqttSet("RSSI", String(WiFi.RSSI()));
+      mqttSet("IP", tochararray(cstr, WiFi.localIP().toString()));
+      mqttSet("RSSI", tochararray(cstr, WiFi.RSSI()));
     }
   } else {
     wifiStation = true;
@@ -81,7 +81,7 @@ void onGotIP(const WiFiEventStationModeGotIP& event){
 };
 
 void onDisconnect(const WiFiEventStationModeDisconnected& event){
-  mqttSet("connect", "disconnected "+(String)event.reason, false);
+  mqttSet("connect", tochararray(cstr, "disconnected ",event.reason), false);
   if (WiFi.status() == WL_CONNECTED) {
     // See https://github.com/esp8266/Arduino/issues/5912
     WiFi.disconnect();
@@ -120,7 +120,7 @@ void mqttFailed(){
   DEBUG1_PRINT(para.mqtt_server);
   DEBUG1_PRINT(", ");
   DEBUG1_PRINTLN(para.mqtt_port);
-  mqttSet("mqttConnected", String(client.state()));
+  mqttSet("mqttConnected", tochararray(cstr, client.state()));
 }
 
 /*  String macID = String(mac[WL_MAC_ADDR_LENGTH - 3], HEX) +
@@ -168,11 +168,11 @@ void mqttReconnect() {
         //timer1.deactivate();
         mqttSet(para.mLwt, "up");
         if (inSetup){
-          mqttSet("ResetReason", ESP.getResetReason());
-          mqttSet("ResetInfo", ESP.getResetInfo());
-          mqttSet("Heap", String(ESP.getFreeHeap()));
-          mqttSet("ChipId", String(ESP.getChipId()));
-          mqttSet("Version", mVersionNr+mVersionBoard);
+          mqttSet("ResetReason", tochararray(cstr, ESP.getResetReason()));
+          mqttSet("ResetInfo", tochararray(cstr, ESP.getResetInfo()));
+          mqttSet("Heap", tochararray(cstr, ESP.getFreeHeap()));
+          mqttSet("ChipId", tochararray(cstr, ESP.getChipId()));
+          mqttSet("Version", tochararray(cstr, mVersionNr, mVersionBoard));
         }
       }
     }
