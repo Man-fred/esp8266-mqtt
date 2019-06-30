@@ -33,6 +33,9 @@ function getConfig() {
 				type = $el.attr('type');
 
 			switch(type){
+				case 'span':
+					$el.text(val);
+					break;
 				case 'checkbox':
 					$el.attr('checked', 'checked');
 					break;
@@ -44,6 +47,12 @@ function getConfig() {
 					$el.val(val);
 			};
 		});
+	});
+}
+
+function getRestart(){
+	$.getJSON("restart.json?"+ Date.now(),function(data){
+		$('#getRestart').val(data);
 	});
 }
 
@@ -111,8 +120,12 @@ function set(page){
 	toggle(page, 'home');
 	toggle(page, 'config');
 	toggle(page, 'about');
+	toggle(page, 'restart');
 	if ($("#config").is(":visible") ) {
 		getConfig();
+	}
+	if ($("#restart").is(":visible") ) {
+		getRestart();
 	}
 }
 

@@ -2,15 +2,11 @@
 
 const debug = false;
 
-// Dateiname: Vnn-nn-nn.<variante3>.<typ7>.bin
+// Dateiname: Vnn-nn-nn.<sketch>.ino.<board>.bin
 $db = array(
 // MTQQ
-    "ino.nodemcu"              => "V01-06-14.esp8266-mqtt.ino.nodemcu.bin",
-    "esp8266-mqtt.nodemcu"     => "V01-06-14.esp8266-mqtt.ino.nodemcu.bin",
-    "esp8266-mqtt.ino.nodemcu"     => "V01-06-14.esp8266-mqtt.ino.nodemcu.bin",
-    "ino.d1_mini"              => "V01-06-13.esp8266-mqtt.ino.d1_mini.bin",
-    "esp8266-mqtt.d1_mini"     => "V01-06-13.esp8266-mqtt.ino.d1_mini.bin",
-    "esp8266-mqtt.ino.d1_mini" => "V01-06-14.esp8266-mqtt.ino.d1_mini.bin",
+    "esp8266-mqtt.ino.nodemcu" => "V01-08-00.esp8266-mqtt.ino.nodemcu.bin",
+    "esp8266-mqtt.ino.d1_mini" => "V01-08-00.esp8266-mqtt.ino.d1_mini.bin",
 // Relais-Webschalter mit IIC
     "iic.nodemcu" => "V00-04-02.iic.nodemcu.bin",
     "iic.d1_mini" => "V01-00-03.iic.d1_mini.bin",

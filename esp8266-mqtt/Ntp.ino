@@ -30,7 +30,7 @@ void getNTP() {
   udp.endPacket();
 
   // wait to see if a reply is available
-  delay(1000);
+  delay(2000);
   
   int cb = udp.parsePacket();
   if (!cb) {
@@ -185,4 +185,3 @@ String fillNtpTime(unsigned long epoch) {
   result += String(ntpTime.sec);
   return(result);
 }
-

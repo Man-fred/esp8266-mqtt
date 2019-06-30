@@ -18,7 +18,7 @@
 				<li id="mconfig" class="left"><a href="#" onclick="set('config')">Configure</a></li>
 				<li id="mabout" class="right"><a href="#" onclick="set('about')">About</a></li>
 				<li class="right"><a href="upload">Upload</a></li>
-				<li class="right"><a href="home.htm?restart=1">Restart</a></li>
+				<li class="right"><a href="#" onclick="set('restart')">Restart</a></li>
 			</ul>
 			<h1><center>Home - <span id="myTitle">+title+</span></center></h1>
 		</div>
@@ -65,14 +65,142 @@
 						  </fieldset>
 						  <fieldset>
 							<legend>IoT:</legend>
-							<label>Reed 1:<br><input type="text" name="reed1"></label><br>
-							<label>Reed 2:<br><input type="text" name="reed2"></label><br><br>
+							<table>
+							<tr><th>PIN</th><th>Typ</th><th>Aktiv bei</th></tr>
+							<tr><td><span type="span" name="PinName0">1</span></td><td><select name="pin0">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn0"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName1">1</span></td><td><select name="pin1">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn1"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName2">1</span></td><td><select name="pin2">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn2"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName3">1</span></td><td><select name="pin3">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn3"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName4">1</span></td><td><select name="pin4">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn4"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName5">1</span></td><td><select name="pin5">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn5"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName6">1</span></td><td><select name="pin6">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn6"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName7">1</span></td><td><select name="pin7">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn7"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							<tr><td><span type="span" name="PinName8">1</span></td><td><select name="pin8">
+									<option value="0">leer</option>
+									<option value="1">Sensor</option>
+									<option value="5">Alarmsensor</option>
+									<option value="2">Aktor</option>
+									<option value="3">Schalter</option>
+									<option value="4">PWM</option>
+									<option value="6">SDA</option>
+									<option value="7">SCL</option>
+									<option value="8">1-Wire</option>
+									<option value="9">LED</option>
+									</select></td>
+							    <td><select name="GpioOn8"><option value="1">High</option><option value="0">Low</option></select></td></tr>
+							</table>
+							<label>LED ein: <select name="GpioLedOn"><option value="1">High</option><option value="0">Low</option></select></label><br><br>
 							<label>Analog Schwelle (0 -> inaktiv):<br><input type="text" name="analog"></label><br><br>
+							<label>I2C: <select name="i2c"><option value="1">Ja</option><option value="0">Nein</option></select></label><br><br>
+							<label>Alarmaktor: <select name="alarmactor"><option value="1">Ja</option><option value="0">Nein</option></select></label><br><br>
 						  </fieldset>
-						  <input type="submit" value="Save">
+						  <fieldset>
+							<label>Check:<br><input type="text" name="checksum" readonly></label><br><br>
+						    <input type="submit" value="Save">
+						  </fieldset>
 						</form>
 					</div>
 				</div>
+			</div>
+			<div id="restart" class="content" style="display: none;">
+				<p>Wartet auf Restart ...</p>
+				<div id="getRestart"></div>
 			</div>
 			<div id="about" class="content" style="display: none;">
 				<p></p>
@@ -120,8 +248,10 @@
 			</div>
 			<div id="contentPins" class="controls">
 					<legend>Digital-/Analog-Pins</legend>
-					Reed1: <span id="reed1state">kein Wert</span><br />
-					Reed2: <span id="reed2state">kein Wert</span><br />
+					Reed1: <span id="pinState0">kein Wert</span><br />
+					Reed2: <span id="pinState1">kein Wert</span><br />
+					Reed3: <span id="pinState2">kein Wert</span><br />
+					Reed4: <span id="pinState3">kein Wert</span><br />
 					Analog: <span id="analogstate">kein Wert</span><br />
 			</div>
 		</div>

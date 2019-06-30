@@ -177,6 +177,7 @@ void handleFileList() {
 }
 
 String getConfig(){
+    byte i;
     String json = "{";
     json += "\"pVersion\":\""+String(para.pVersion + 1);
     json += "\",\"ssid\":\""+ String(para.ssid);
@@ -189,25 +190,34 @@ String getConfig(){
     json += "\",\"mPre\":\""+ String(para.mPre);
     json += "\",\"mSub\":\""+ String(para.mSub);
     json += "\",\"mLwt\":\""+ String(para.mLwt);
-    json += "\",\"timerMsec0\":\""+ String(para.timerMsec[0]);
-    json += "\",\"timerMsec1\":\""+ String(para.timerMsec[1]);
-    json += "\",\"timerMsec2\":\""+ String(para.timerMsec[2]);
-    json += "\",\"reed1\":\""+ String(para.reed1);
-    json += "\",\"reed2\":\""+ String(para.reed2);
+    for (i = 0; i < 3; i++) {
+      json += "\",\"timerMsec"+String(i)+"\":\""+ String(para.timerMsec[i]);
+    }
+    for (i = 0; i < PIN_MAX; i++) {
+      json += "\",\"PinName"+String(i)+"\":\""+ PinName[i];
+      json += "\",\"pin"+String(i)+"\":\""+ String(para.pin[i]);
+      json += "\",\"GpioOn"+String(i)+"\":\""+ String(para.GpioOn[i]);
+    }
+    json += "\",\"GpioLedOn\":\""+ String(para.GpioLedOn);
     json += "\",\"analog\":\""+ String(para.analog);
-    json += "\",\"checksum\":\""+ String(para.checksum);
+    json += "\",\"checksum\":\""+ String(para.checksum + 1);
     json += "\"}";
     return json;
 }
 String getIndex(){
+    byte i;
     String json = "{";
     json += "\"myTitle\":\""+String(para.mClient);
     json += "\",\"myStatus\":\"";
     json += (WiFi.status() == WL_CONNECTED) ? "Connected" : "Disconnected";
     json += "\",\"heap\":\""+String(ESP.getFreeHeap());
     if (para.analog > 0) json += "\",\"analogstate\":\""+String(analogWert);
-    if (para.reed1 > 0) json += "\",\"reed1state\":\""+String(reed1State);
-    if (para.reed2 > 0) json += "\",\"reed2state\":\""+String(reed2State);
+    for (i = 0; i < PIN_MAX; i++) {
+      json += "\",\"pinState"+String(i)+"\":\""+String(pinState[i]);
+    }
+    json += "\",\"reedSensor\":\""+String(reedSensor);
+    json += "\",\"reedAlarmstate\":\""+String(reedAlarmstate);
+    json += "\",\"reedActor\":\""+String(reedActor);
     json += "\",\"gpio\":\""+String((uint32_t)(((GPI | GPO) & 0xFFFF) | ((GP16I & 0x01) << 16)));
     json += "\",\"bmp\":\""+String(bmpActive);
     if (bmpActive) {
@@ -223,9 +233,9 @@ String getIndex(){
       json += "\",\"bh1750Lux\":\""+String(bh1750Lux);
       json += "\",\"bh1750Time\":\""+fillNtpTime(bh1750Time);
     }
-    json += "\",\"ds\":\""+String(dsActive);
-    if (dsActive) {
-      for (byte i = 0; i < MAX_DS_SENSORS; i++) {
+    json += "\",\"ds\":\""+String(ds1820Sensors > 0);
+    if (ds1820Sensors > 0) {
+      for (i = 0; i < MAX_DS_SENSORS; i++) {
         if (dsAddr[i][0] == 0x10 || dsAddr[i][0] == 0x28) {
           json += "\",\"dsT"+String(i)+"\":\""+String(dsTemp[i], 2);
           json += "\",\"dsTime"+String(i)+"\":\""+fillNtpTime(dsTime[i]);
@@ -248,6 +258,15 @@ void httpHome() {
   }
 }
 
+String httpRestart(){
+  // muss in timer, sonst http-Timeout und endlos-Reset
+  DEBUG_PRINTLN("httpRestart started");
+
+  timerRestart.begin(5000, espRestart);
+  String json = "{\"result\":\"Restart ausgelöst, bitte warten\"}";
+  return json;
+}
+
 //* WLAN page allows users to set the WiFi credentials 
 void httpConfig(){
   // Check if there are any GET parameters
@@ -255,6 +274,7 @@ void httpConfig(){
   {    
     EEPROM.begin(4096);
     para.pVersion = http.arg("pVersion").toInt();
+    para.pVersion2 = 123456 + para.pVersion;
     strncpy( para.ssid, http.arg("ssid").c_str(), 20); para.ssid[20 - 1] = '\0';
     strncpy( para.password, http.arg("password").c_str(), 20); para.password[20 - 1] = '\0';
     
@@ -268,8 +288,12 @@ void httpConfig(){
     strncpy( para.mLwt, http.arg("mLwt").c_str(), 10); para.mLwt[10 - 1] = '\0';
     para.timerMsec[0] = http.arg("timerMsec0").toInt();
     para.timerMsec[1] = http.arg("timerMsec1").toInt();
-    para.reed1 = http.arg("reed1") == "1" ? true : false;
-    para.reed2 = http.arg("reed2") == "1" ? true : false;
+    para.timerMsec[2] = http.arg("timerMsec2").toInt();
+    for (byte i = 0; i < PIN_MAX; i++) {
+      para.pin[i] = http.arg("pin"+String(i)).toInt();
+      para.GpioOn[i] = http.arg("GpioOn"+String(i)).toInt();
+    }
+    para.GpioLedOn = http.arg("GpioLedOn").toInt();
     para.analog = http.arg("analog").toInt();
     para.checksum = 123456; // ending int read 
     // 512k: 3c000 - 3ffff
@@ -280,6 +304,7 @@ void httpConfig(){
     EEPROM.commit();            // EEPROM Schreiben
     EEPROM.end();
     Serial.println("Flash written");
+    setupPinmode();
   }
   if(!handleFileRead("/home.htm")) http404();
 }
@@ -330,6 +355,9 @@ void httpSetup() {
   //SERVER INIT
   /* Set page handler functions */
   http.on("/",   httpHome);
+  http.on("/restart.json", [](){
+    http.send(200, "application/json",  httpRestart());
+  });
   http.on("/setConfig", httpConfig);
   //list directory
   http.on("/list", HTTP_GET, handleFileList);
