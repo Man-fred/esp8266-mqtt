@@ -1,8 +1,8 @@
-char mVersionNr[] = "V02-00-00.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-01.esp8266-mqtt.ino.";
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
-#define DEBUG 3
+#define DEBUG 0
 /*
    Wire - I2C Scanner
 
