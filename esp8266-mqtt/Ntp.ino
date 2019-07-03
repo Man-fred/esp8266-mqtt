@@ -1,9 +1,10 @@
 void getNTP() {
-  DEBUG_PRINTLN("Starting UDP");
+  DEBUG1_PRINTLN("Starting UDP");
   udp.begin(localPort);
   DEBUG3_PRINT("Local port: ");
+#ifndef ESP32
   DEBUG3_PRINTLN(udp.localPort());
-
+#endif
   //get a random server from the NTPpool
   WiFi.hostByName(ntpServerName, timeServerIP); 
 
@@ -34,7 +35,7 @@ void getNTP() {
   
   int cb = udp.parsePacket();
   if (!cb) {
-    DEBUG_PRINTLN("no packet yet");
+    DEBUG1_PRINTLN("no packet yet");
   }
   else {
     DEBUG1_PRINT("packet received, length=");
@@ -71,26 +72,26 @@ void getNTP() {
     fillNtpTime(epoch);
     
     // print the hour, minute and second:
-    DEBUG_PRINT("The (UTC) time is ");       // UTC is the time at Greenwich Meridian (GMT)
-    DEBUG_PRINT(ntpTime.mday); 
-    DEBUG_PRINT('.');
-    DEBUG_PRINT(ntpTime.mon); 
-    DEBUG_PRINT('.');
-    DEBUG_PRINT(ntpTime.year); 
-    DEBUG_PRINT(' ');
-    DEBUG_PRINT(ntpTime.hour); // print the hour (86400 equals secs per day)
-    DEBUG_PRINT(':');
+    DEBUG1_PRINT("The (UTC) time is ");       // UTC is the time at Greenwich Meridian (GMT)
+    DEBUG1_PRINT(ntpTime.mday); 
+    DEBUG1_PRINT('.');
+    DEBUG1_PRINT(ntpTime.mon); 
+    DEBUG1_PRINT('.');
+    DEBUG1_PRINT(ntpTime.year); 
+    DEBUG1_PRINT(' ');
+    DEBUG1_PRINT(ntpTime.hour); // print the hour (86400 equals secs per day)
+    DEBUG1_PRINT(':');
     if (ntpTime.min < 10 ) {
       // In the first 10 minutes of each hour, we'll want a leading '0'
-      DEBUG_PRINT('0');
+      DEBUG1_PRINT('0');
     }
-    DEBUG_PRINT(ntpTime.min); // print the minute (3600 equals secs per minute)
-    DEBUG_PRINT(':');
+    DEBUG1_PRINT(ntpTime.min); // print the minute (3600 equals secs per minute)
+    DEBUG1_PRINT(':');
     if (ntpTime.sec < 10 ) {
       // In the first 10 seconds of each minute, we'll want a leading '0'
-      DEBUG_PRINT('0');
+      DEBUG1_PRINT('0');
     }
-    DEBUG_PRINTLN(ntpTime.sec); // print the second
+    DEBUG1_PRINTLN(ntpTime.sec); // print the second
   }
 }
 

@@ -16,10 +16,11 @@ function getSsid() {
 		};
 		if (i==0) {
 			$("#AccessPoints").hide();
+			$("#connected").html('<input type="text" id="ssid" name="ssid"  placeholder="No access points found" readonly>');
 		} else {
 			$("#noAccessPoints").hide();
+			$("div.listwlan").html(radios);
 		};
-		$("div.listwlan").html(radios);
 	});
 	//$(".ssid").change()
 }

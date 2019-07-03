@@ -22,7 +22,7 @@
   access the sample web page at http://esp8266fs.local
   edit the page by going to http://esp8266fs.local/edit
 */
-const char* serverIndex = "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='upload'><input type='submit' value='Upload'></form>";
+const char* serverIndex = "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='upload'><input type='submit' value='Upload'></form><p><a href=\"/home.htm\">Goto Home</a></p>";
 
 //format bytes
 String formatBytes(size_t bytes){
@@ -118,7 +118,7 @@ void handleFileUpload(){
 void handleFileDelete(){
   if(http.args() == 0) return http.send(500, "text/plain", "BAD ARGS");
   String path = http.arg(0);
-  DEBUG_PRINTLN("handleFileDelete: " + path);
+  DEBUG1_PRINTLN("handleFileDelete: " + path);
   if(path == "/")
     return http.send(500, "text/plain", "BAD PATH");
   if(!SPIFFS.exists(path))
@@ -151,7 +151,9 @@ void handleFileList() {
     http.send(500, "text/plain", "BAD ARGS"); 
     return;
   }
-  
+#ifdef ESP32
+    http.send(500, "text/plain", "NOT ON ESP32"); 
+#else
   String path = http.arg("dir");
   DEBUG2_PRINTLN("handleFileList: " + path);
   Dir dir = SPIFFS.openDir(path);
@@ -171,9 +173,9 @@ void handleFileList() {
     output += "\"}";
     entry.close();
   }
-  
   output += "]";
   http.send(200, "text/json", output);
+#endif
 }
 
 String getConfig(){
@@ -218,7 +220,9 @@ String getIndex(){
     json += "\",\"reedSensor\":\""+String(reedSensor);
     json += "\",\"reedAlarmstate\":\""+String(reedAlarmstate);
     json += "\",\"reedActor\":\""+String(reedActor);
+#ifndef ESP32
     json += "\",\"gpio\":\""+String((uint32_t)(((GPI | GPO) & 0xFFFF) | ((GP16I & 0x01) << 16)));
+#endif
     json += "\",\"bmp\":\""+String(bmpActive);
     if (bmpActive) {
       if (bmeActive) {
@@ -246,12 +250,37 @@ String getIndex(){
     return json;
 }
 
-/* Root page for the webserver */
+char* getSsid(){
+    int ap_count = WiFi.scanNetworks(false, true);
+    String ssid;
+    uint8_t encryptionType;
+    int32_t RSSI;
+    uint8_t* BSSID;
+    int32_t channel;
+    bool isHidden;
+
+    char * json = (char *) malloc (1000);
+    strcpy (json, "[\n");
+#ifndef ESP32
+    char network[100];
+    for (int i = 0; i < ap_count; i++)
+    {
+      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
+      sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
+      if (strlen(json) < 899)
+        strcat(json, network);
+    }
+#endif
+    strcat(json, "]");
+    return(json);
+}
+  
+  /* Root page for the webserver */
 void httpHome() {
   // Check if there are any GET parameters
   if (http.hasArg("restart")) {
     // muss in timer, sonst http-Timeout und endlos-Reset
-    timerRestart.begin(5000, espRestart);
+    timerRestartDelay.begin(5000, restartDelay);
     if(!handleFileRead("/restart.htm")) http404();
   } else {
     if(!handleFileRead("/home.htm")) http404();
@@ -260,9 +289,9 @@ void httpHome() {
 
 String httpRestart(){
   // muss in timer, sonst http-Timeout und endlos-Reset
-  DEBUG_PRINTLN("httpRestart started");
+  DEBUG1_PRINTLN("httpRestart started");
 
-  timerRestart.begin(5000, espRestart);
+  timerRestartDelay.begin(5000, restartDelay);
   String json = "{\"result\":\"Restart ausgelöst, bitte warten\"}";
   return json;
 }
@@ -321,7 +350,7 @@ void http404(){
   {
     response_message += "Status: Disconnected<br>";
   }
-  response_message += "<a href=\"/home.htm\">Goto Home</a>";
+  response_message += "<a href=\"/home.htm\">Goto Home</a> <a href=\"/upload\">Upload files</a>";
   
   response_message += "URI: ";
   response_message += http.uri();
@@ -341,13 +370,15 @@ void http404(){
 }
 void listSpiffs(){
     DBG_OUTPUT_PORT.setDebugOutput(true);
+#ifndef ESP32
     Dir dir = SPIFFS.openDir("/");
     while (dir.next()) {    
       String fileName = dir.fileName();
       size_t fileSize = dir.fileSize();
-      DEBUG_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
+      DEBUG1_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
     }
-    DEBUG_PRINTF("\n");
+    DEBUG1_PRINTF("\n");
+#endif
 }
 void httpSetup() {
   SPIFFS.begin();
@@ -396,26 +427,34 @@ void httpSetup() {
 
   //get SSIDs for config-page
   http.on("/ssid.json", HTTP_GET, [](){
-    int ap_count = WiFi.scanNetworks();
+    int ap_count = WiFi.scanNetworks(false, true);
+    String ssid;
+    uint8_t encryptionType;
+    int32_t RSSI;
+    uint8_t* BSSID;
+    int32_t channel;
+    bool isHidden;
+
     String json = "[";
-    for (uint8_t ap_idx = 0; ap_idx < ap_count; ap_idx++)
+    for (int i = 0; i < ap_count; i++)
     {
-      if (ap_idx > 0) {
-        json += ",";
-      }
-      json += "{";
-      json += "\"SSID\":\""+String(WiFi.SSID(ap_idx));
-      json += "\",\"RSSI\":\""+ String(WiFi.RSSI(ap_idx));
-      json += "\",\"encryption\":\"";
-      (WiFi.encryptionType(ap_idx) == ENC_TYPE_NONE) ? json += " " : json += "*";
-      //WiFi.channel
-      //(WiFi.isHidden(ap_idx) == ENC_TYPE_NONE) ? json += " " : json += "*";
-      json += "\" }";
+#ifndef ESP32
+      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
+      //sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
+      if (i > 0)
+        json += ",\n";  
+      String network = "{\"SSID\":\""+ssid+"\",\"channel\":\""+String(channel)+
+            "\",\"RSSI\":\""+String(RSSI)+"\",\"encryption\":\""+(encryptionType == ENC_TYPE_NONE ? " " : "*")+
+            "\",\"hidden\":\""+(isHidden ? "hidden" : "")+"\" }";
+      //json += %s%s%d%s%s, , channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
+      json += network;
+      DEBUG3_PRINTLN(network);
+#else
+      sprintf(json, "%s{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", json, WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i), WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*", "");
+#endif
     }
     json += "]";
-    //DEBUG_PRINT(json);
     http.send(200, "application/json", json);
-    json = String();
   });
 
   //get active config for config-page
@@ -428,7 +467,9 @@ void httpSetup() {
     String json = "{";
     json += "\"heap\":"+String(ESP.getFreeHeap());
     json += ", \"analog\":"+String(analogRead(A0));
+#ifndef ESP32
     json += ", \"gpio\":"+String((uint32_t)(((GPI | GPO) & 0xFFFF) | ((GP16I & 0x01) << 16)));
+#endif
     json += "}";
     http.send(200, "text/json", json);
     json = String();
@@ -436,5 +477,5 @@ void httpSetup() {
   
   http.begin();
   
-  DEBUG_PRINTLN("HTTP server started");
+  DEBUG1_PRINTLN("HTTP server started");
 }

@@ -5,8 +5,8 @@ const debug = false;
 // Dateiname: Vnn-nn-nn.<sketch>.ino.<board>.bin
 $db = array(
 // MTQQ
-    "esp8266-mqtt.ino.nodemcu" => "V01-08-22.esp8266-mqtt.ino.nodemcu.bin",
-    "esp8266-mqtt.ino.d1_mini" => "V01-08-22.esp8266-mqtt.ino.d1_mini.bin",
+    "esp8266-mqtt.ino.nodemcu" => "V02-00-00.esp8266-mqtt.ino.nodemcu.bin",
+    "esp8266-mqtt.ino.d1_mini" => "V02-00-00.esp8266-mqtt.ino.d1_mini.bin",
 // Relais-Webschalter mit IIC
     "iic.nodemcu" => "V00-04-02.iic.nodemcu.bin",
     "iic.d1_mini" => "V01-00-03.iic.d1_mini.bin",

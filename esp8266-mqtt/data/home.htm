@@ -31,17 +31,19 @@
 			</div>
 			<div id="config" class="content" style="display: none;">
 				<div id="controls" style="display: block; border: 1px solid rgb(68, 68, 68); padding: 5px; margin: 5px; width: 362px; background-color: rgb(238, 238, 238);">
-					<div id="noAccessPoints">
-						No access points found.
-					</div>
-					<div id="AccessPoints">
-						<form method="post" action="setConfig">
-							<label>Version :<br><input type="text" name="pVersion" id="pVersion"></label><br><br>
+					<form method="post" action="setConfig">
+						<label>Version :<br><input type="text" name="pVersion" id="pVersion"></label><br><br>
 						  <fieldset>
-							<legend>Wifi:</legend>
-							<label>To connect to a WiFi network, please select a network</label>
-							<div  class="listwlan" name="listwlan" id="listwlan"></div>
-							<label>WiFi password (if required):<br><input type="text" name="password" id="password"></label><br><br>
+							<div id="noAccessPoints">
+								No access points found or connected.
+								<div id="connected"></div>
+							</div>
+							<div id="AccessPoints">
+								<legend>Wifi:</legend>
+								<label>To connect to a WiFi network, please select a network</label>
+								<div  class="listwlan" name="listwlan" id="listwlan"></div>
+								<label>WiFi password (if required):<br><input type="text" name="password" id="password"></label><br><br>
+							</div>
 						  </fieldset>
 						  <fieldset>
 							<legend>MQTT:</legend>
@@ -185,17 +187,13 @@
 									</select></td>
 							    <td><select name="GpioOn8"><option value="1">High</option><option value="0">Low</option></select></td></tr>
 							</table>
-							<label>LED ein: <select name="GpioLedOn"><option value="1">High</option><option value="0">Low</option></select></label><br><br>
 							<label>Analog Schwelle (0 -> inaktiv):<br><input type="text" name="analog"></label><br><br>
-							<label>I2C: <select name="i2c"><option value="1">Ja</option><option value="0">Nein</option></select></label><br><br>
-							<label>Alarmaktor: <select name="alarmactor"><option value="1">Ja</option><option value="0">Nein</option></select></label><br><br>
 						  </fieldset>
 						  <fieldset>
 							<label>Check:<br><input type="text" name="checksum" readonly></label><br><br>
 						    <input type="submit" value="Save">
 						  </fieldset>
-						</form>
-					</div>
+					</form>
 				</div>
 			</div>
 			<div id="restart" class="content" style="display: none;">
