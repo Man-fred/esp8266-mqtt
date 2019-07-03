@@ -1,6 +1,6 @@
 
 # esp8266-mqtt
-Das Projekt wird in einer **[FHEM](https://fhem.de/fhem_DE.html)**-Installation genutzt, um Sensoren abzufragen und Aktoren zu schalten. Eingesammelt und verteilt werden die Daten über das **MQTT**-Protokoll, installiert ist [mosquitto](https://mosquitto.org/).
+Das Projekt wird in einer **[FHEM](https://fhem.de/fhem_DE.html)**-Installation genutzt, um Sensoren abzufragen und Aktoren zu schalten. Eingesammelt und verteilt werden die Daten über das **MQTT**-Protokoll, installiert ist [mosquitto](https://mosquitto.org/). Hinweise zur Einrichtung und Nutzung gibt es im [Wiki](../../wiki).
 ## Wie werden die Chips genutzt
  - Der esp8266 wird als Wemos mini oder NodeMcu genutzt und mit micro-USB-Adapter mit Strom versorgt.
  - **I2C** und **1-Wire** werden beim Start geprüft und eingebunden. 
