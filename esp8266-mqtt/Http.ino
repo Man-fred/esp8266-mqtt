@@ -381,7 +381,11 @@ void listSpiffs(){
 #endif
 }
 void httpSetup() {
+#ifdef ESP32
+  SPIFFS.begin(true); // formatOnFail
+#else
   SPIFFS.begin();
+#endif
   listSpiffs();  
   //SERVER INIT
   /* Set page handler functions */
@@ -438,20 +442,20 @@ void httpSetup() {
     String json = "[";
     for (int i = 0; i < ap_count; i++)
     {
-#ifndef ESP32
-      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
-      //sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
       if (i > 0)
         json += ",\n";  
+#ifndef ESP32
+      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
       String network = "{\"SSID\":\""+ssid+"\",\"channel\":\""+String(channel)+
             "\",\"RSSI\":\""+String(RSSI)+"\",\"encryption\":\""+(encryptionType == ENC_TYPE_NONE ? " " : "*")+
             "\",\"hidden\":\""+(isHidden ? "hidden" : "")+"\" }";
-      //json += %s%s%d%s%s, , channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
+#else
+      String network = "{\"SSID\":\""+WiFi.SSID(i)+"\",\"channel\":\""+String(WiFi.channel(i))+
+            "\",\"RSSI\":\""+String(WiFi.RSSI(i))+"\",\"encryption\":\""+(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*", "")+
+            "\",\"hidden\":\" \" }";
+#endif
       json += network;
       DEBUG3_PRINTLN(network);
-#else
-      sprintf(json, "%s{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", json, WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i), WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*", "");
-#endif
     }
     json += "]";
     http.send(200, "application/json", json);
