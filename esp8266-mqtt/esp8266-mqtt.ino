@@ -1,4 +1,6 @@
-char mVersionNr[] = "V02-00-01.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-05.esp8266-mqtt.ino.";
+/* Achtung: 1MB SPIFFS einstellen */
+
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
@@ -18,6 +20,9 @@ char mVersionNr[] = "V02-00-01.esp8266-mqtt.ino.";
  * OneWire-Bus D4 (2), collision with builtin LED on WeMos D1 Mini (2)
  * change to   D3 (0) 
  */
+#ifndef ARDUINO_VARIANT
+# define ARDUINO_VARIANT ARDUINO_BOARD
+#endif
 #ifdef ARDUINO_ESP8266_NODEMCU
 # include <ESP8266WiFi.h>
 // enables OTA updates
@@ -44,30 +49,10 @@ char mVersionNr[] = "V02-00-01.esp8266-mqtt.ino.";
   char *PinName[] = {"D.7", "D.6", "D.5", "D.0", "D.3", "D.1", "D.2", "D.4", (char*)"D.8"};
   char mVersionBoard[] = "d1_mini";
 
-#elif ARDUINO_ESP32_NODEMCU_32S
-# define PIN_MAX 9
-# define SYSTEM_EVENT_STA_LOST_IP 8
-# define SYSTEM_EVENT_GOT_IP6 19
-# include <WiFi.h>
-// enables OTA updates
-# include <HTTPUpdate.h>
-# define ESPhttpUpdate httpUpdate
-// enables webconfig
-# include <WebServer.h>
-# include <ESPmDNS.h>
-# include <SPIFFS.h>
-  const byte board = 3;
-  const byte Pin[] = {GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8}; // D5: reed3 in oder S3 out
-  char *PinName[] = {"D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8"};
-  String mVersionBoard = "nodemcu-32s";
-
-#elif ESP32
+#elif ARDUINO_NodeMCU_32S
 # define PIN_MAX 9
 # define WL_MAC_ADDR_LENGTH 8
-//# define SYSTEM_EVENT_STA_LOST_IP 8
-//# define SYSTEM_EVENT_GOT_IP6 19
 # include <WiFi.h>
-# include <WiFiScan.h>
 // enables OTA updates
 # include <HTTPUpdate.h>
 # include <HTTPClient.h>
@@ -77,7 +62,50 @@ char mVersionNr[] = "V02-00-01.esp8266-mqtt.ino.";
 # include <ESPmDNS.h>
 # include <SPIFFS.h>
 # include <rom/rtc.h>
+
   const byte board = 3;
+  const byte Pin[] = {GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8}; // D5: reed3 in oder S3 out
+  char *PinName[] = {"D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8"};
+  String mVersionBoard = "nodemcu-32s";
+
+#elif DEVICE_ESP32_DEV
+# define PIN_MAX 9
+# define BLE
+# define WL_MAC_ADDR_LENGTH 8
+# include <WiFi.h>
+// enables OTA updates
+# include <HTTPUpdate.h>
+# include <HTTPClient.h>
+
+// enables webconfig
+# include <WebServer.h>
+# include <ESPmDNS.h>
+# include <SPIFFS.h>
+# include <rom/rtc.h>
+
+  const byte board = 6;
+  const byte Pin[] = {GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8}; // D5: reed3 in oder S3 out
+  char *PinName[] = {"D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8"};
+  String mVersionBoard = "esp32";
+
+#elif ESP32
+# define PIN_MAX 9
+# define BLE
+# define WL_MAC_ADDR_LENGTH 8
+//# define SYSTEM_EVENT_STA_LOST_IP 8
+//# define SYSTEM_EVENT_GOT_IP6 19
+# include <WiFi.h>
+// enables OTA updates
+# include <HTTPUpdate.h>
+# include <HTTPClient.h>
+
+// enables webconfig
+# include <WebServer.h>
+# include <ESPmDNS.h>
+# include <SPIFFS.h>
+# include <rom/rtc.h>
+
+  const byte board = 4;
   const byte Pin[] = {GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8}; // D5: reed3 in oder S3 out
   char *PinName[] = {"D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8"};
   String mVersionBoard = "esp32";
@@ -89,20 +117,24 @@ char mVersionNr[] = "V02-00-01.esp8266-mqtt.ino.";
 # include <WiFi.h>
 // enables OTA updates
 # include <HTTPUpdate.h>
-# define ESPhttpUpdate httpUpdate
 // enables webconfig
 # include <WebServer.h>
 # include <ESPmDNS.h>
 # include <SPIFFS.h>
-  const byte board = 3;
+  const byte board = 5;
   const byte Pin[] = {GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8}; // D5: reed3 in oder S3 out
   char *PinName[] = {"D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8"};
-  String mVersionBoard = "unknown";
+  String mVersionBoard = ARDUINO_VARIANT;
 #endif
+boolean bleScanActive = true;
+
 byte ONE_WIRE_BUS = Pin[4];
 byte sclPin = Pin[5];
 byte sdaPin = Pin[6];
 byte ledPin = Pin[7]; //BUILTIN_LED; 
+byte ledPinOn = 0;
+byte pwmPin = 0;
+byte pwmPinOn = 0;
 
 // enables storing webpages in EEPROM, not in sketch
 #include <FS.h>
@@ -111,31 +143,31 @@ byte ledPin = Pin[7]; //BUILTIN_LED;
 // enables NTP / RTC
 #include <WiFiUdp.h>
 
-//#define MQTT_MAX_PACKET_SIZE 256 // default 128
+#define MQTT_MAX_PACKET_SIZE 256 // default 128
 #include <PubSubClient.h>
 #include <Wire.h>
 //#include <BMP280.h>
 #include <Adafruit_BME280.h>
 #include <BH1750FVI.h>
+#include <PCF8574.h>
 
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <DS2450.h>
+#ifdef BLE
+# include <BLEDevice.h>
+#endif
 
+// Fehler in der Implementierung, Absturz bei ESP32
+#ifndef ESP32
+# include <OneWire.h>
+# include <DallasTemperature.h>
+# include <DS2450.h>
+#endif
 /*  V01-00 : Arduino 1.6.7
  *  V01-01 : Arduino 1.6.10, DallasTemperature, OneWire updated
  *  V01-04 : Arduino 1.6.10, webserver for configdate, saved in eeprom, detection of NodeMCU and WeMos D1 mini
  *  V01-05 : Arduino 1.8.2,  
  *  V01-06 : Arduino 1.8.9,  
  */
-#define cstrLen 50
-char cstr[cstrLen];
-char cmessage[cstrLen];
-char cpart[cstrLen];
 const byte hex[17] = "0123456789ABCDEF";
-
-char serialIn[5];
-byte serialPos = 0;
 
 // Parameters for WiFi and MQTT
 #ifdef ESP32
@@ -167,6 +199,7 @@ struct Parameter {
   byte GpioOn[PIN_MAX];
   byte GpioLedOn;
   int analog;
+  char mKeypad[25];
   bool i2c;
   bool onewire;
   unsigned int checksum;
@@ -228,9 +261,14 @@ boolean bh1750Active = false;
 uint16_t bh1750Lux = 0;
 unsigned long bh1750Time;
 
-OneWire ds(ONE_WIRE_BUS); /* Ini oneWire instance */
-DallasTemperature ds18b20(&ds);/* Dallas Temperature Library für Nutzung der oneWire */
-DS2450 ds2450(&ds);
+PCF8574 pcf8574(0x20);
+boolean pcf8574Active = false;
+
+#ifndef ESP32
+  OneWire ds(ONE_WIRE_BUS); /* Ini oneWire instance */
+  DallasTemperature ds18b20(&ds);/* Dallas Temperature Library für Nutzung der oneWire */
+  DS2450 ds2450(&ds);
+#endif
 
 #define MAX_DS_SENSORS 3
 boolean dsActive = false;
@@ -297,13 +335,16 @@ int analogState = 0; // Analog < 512 -> 0, > 511 -> 1
 
 #define MAX_MESSAGES 40
 #define MQTT_MAX_TOPIC_SIZE 50
-// MQTT_MAX_PACKET_SIZE 128
 char mPayloadKey[MAX_MESSAGES][MQTT_MAX_TOPIC_SIZE];
 char mPayloadValue[MAX_MESSAGES][MQTT_MAX_PACKET_SIZE];
 boolean mPayloadRetain[MAX_MESSAGES];
 int mPayloadQos[MAX_MESSAGES];
 int mPayloadSet = 0;
 int mPayloadPublish = 0;
+#define cstrLen 50
+char cstr[MQTT_MAX_PACKET_SIZE];
+char cmessage[MQTT_MAX_PACKET_SIZE];
+char cpart[MQTT_MAX_PACKET_SIZE];
 
 char* tochararray(char* cvalue, int value){
   itoa(value, cvalue, 10);
@@ -339,13 +380,13 @@ char* tochararray(char* cvalue, char* value1){
   return cvalue;
 }
 char* tochararray(char* cvalue, String value1){
-  value1.toCharArray(cvalue, cstrLen);
+  value1.toCharArray(cvalue, MQTT_MAX_PACKET_SIZE);
   return cvalue;
 }
 char* tochararray(char* cvalue, String value1, String value2){
-  char cpart[cstrLen];
-  value1.toCharArray(cvalue, cstrLen);
-  value2.toCharArray(cpart, cstrLen);
+  char cpart[MQTT_MAX_PACKET_SIZE];
+  value1.toCharArray(cvalue, MQTT_MAX_PACKET_SIZE);
+  value2.toCharArray(cpart, MQTT_MAX_PACKET_SIZE);
   strcat(cvalue, cpart);
   return cvalue;
 }
@@ -398,6 +439,7 @@ class MyTimer {
 
 MyTimer timerMqtt; // mqtt delay
 MyTimer timerSensors; // collect 1wire/i2c sensors delay
+MyTimer timerKeypadloop; // collect i2c Keypad delay
 MyTimer timerReconnect; // reconnect wifi delay
 MyTimer timerNtp; // ntp-loop 
 MyTimer timerRestartDelay; // restart delay in websession
@@ -423,40 +465,9 @@ void getSystem() {
   DEBUG3_PRINTLN(mFlashSize,HEX);
 }
 */
-void testPara() {
-  byte i2csda = 0;
-  byte i2cscl = 0;
-  para.i2c = 0;
-  para.onewire = 0;
-  if (para.checksum != 123456) {
-    para.checksum = 999999;
-  }
-  if (para.timerMsec[0] < 100) para.timerMsec[0] = 1000;
-  if (para.timerMsec[1] < 1000) para.timerMsec[1] = 60000;
-  if (para.timerMsec[2] < 1000) para.timerMsec[2] = 20000;
-  for (byte i = 0; i < PIN_MAX; ++i) {
-    switch (para.pin[i]) {
-      case PIN_1WIRE : ONE_WIRE_BUS = Pin[i];
-                       para.onewire = 1;
-                       break;
-      case PIN_SCL   : sclPin = Pin[i];
-                       i2cscl++;
-                       break;
-      case PIN_SDA   : sdaPin = Pin[i];
-                       i2csda++;
-                       break;
-      case PIN_LED   : ledPin = Pin[i];
-                       para.GpioLedOn = para.GpioOn[i];
-                       break;
-    }
-  }
-  if (i2csda == 1 && i2cscl == 1) {
-    para.i2c = 1;
-  }
-}
-
 void getPara() {
-  EEPROM.begin(4096);
+
+  EEPROM.begin(512);
   EEPROM.get(0, para);
   if (para.pVersion > 0 && (para.pVersion2 == (123456 + para.pVersion))) {
     DEBUG1_PRINTLN("Flash loaded");
@@ -473,7 +484,9 @@ void getPara() {
       para.mClient[2+(i*2)] = hex[(para.mMac[i] & 0xF0) >> 4];
       para.mClient[3+(i*2)] = hex[para.mMac[i] & 0x0F];
     }*/
-    strncpy( para.mClient,macToEsp(para.mMac),10);
+#   ifndef ESP32
+      strncpy( para.mClient,macToEsp(para.mMac),10);
+#   endif
     strncpy( para.mPre, "esp/", 10); para.mPre[10 - 1] = '\0';
     strncpy( para.mSub, "set/+", 10); para.mSub[10 - 1] = '\0';
     strncpy( para.mLwt, "lwt", 10); para.mLwt[10 - 1] = '\0';
@@ -490,7 +503,6 @@ void getPara() {
     para.pin[5] = PIN_SCL;
     para.pin[6] = PIN_SDA;
     para.pin[7] = PIN_LED; //BUILTIN_LED; 
-    para.GpioLedOn = 0;
     para.analog = 0;
     para.i2c = 0;
     para.onewire = 0;
@@ -503,7 +515,6 @@ void getPara() {
     EEPROM.put(0, para);
     EEPROM.commit();            // EEPROM Schreiben
     DEBUG1_PRINTLN("Flash written");
-    // */
   }
   EEPROM.end();
 }
@@ -521,13 +532,13 @@ void mqttSet(char* key, char* value, boolean retain = true, int qos = 0) {
     mPayloadValue[mPayloadSet][payload] = '\0';
     mPayloadRetain[mPayloadSet] = retain;
     mPayloadQos[mPayloadSet] = qos;
-    DEBUG3_PRINT("mqttSet  ");
-    DEBUG3_PRINT(mPayloadSet);
-    DEBUG3_PRINT(": ");
-    DEBUG3_PRINT(mPayloadKey[mPayloadSet]);
-    DEBUG3_PRINT(" <");
-    DEBUG3_PRINT(value);
-    DEBUG3_PRINTLN(">");
+    DEBUG1_PRINT("mqttSet  ");
+    DEBUG1_PRINT(mPayloadSet);
+    DEBUG1_PRINT(": ");
+    DEBUG1_PRINT(mPayloadKey[mPayloadSet]);
+    DEBUG1_PRINT(" <");
+    DEBUG1_PRINT(value);
+    DEBUG1_PRINTLN(">");
     mPayloadSet++;
     if (mPayloadSet > MAX_MESSAGES-1) {
       mPayloadSet = 0;
@@ -544,13 +555,13 @@ void mqttSend() {
     if (!erg && mPayloadQos[mPayloadPublish]-- > 0){
       mqttSet(mPayloadKey[mPayloadPublish], mPayloadValue[mPayloadPublish], mPayloadRetain[mPayloadSet], mPayloadQos[mPayloadPublish]);
     }
-    DEBUG3_PRINT("mqttSend ");
-    DEBUG3_PRINT(mPayloadPublish);
-    DEBUG3_PRINT(": ");
-    DEBUG3_PRINT(mPayloadKey[mPayloadPublish]);
-    DEBUG3_PRINT(" <");
-    DEBUG3_PRINT(mPayloadValue[mPayloadPublish]);
-    DEBUG3_PRINTLN(">");
+    DEBUG2_PRINT("mqttSend ");
+    DEBUG2_PRINT(mPayloadPublish);
+    DEBUG2_PRINT(": ");
+    DEBUG2_PRINT(mPayloadKey[mPayloadPublish]);
+    DEBUG2_PRINT(" <");
+    DEBUG2_PRINT(mPayloadValue[mPayloadPublish]);
+    DEBUG2_PRINTLN(">");
     memset(mPayloadKey[mPayloadPublish], 0, MQTT_MAX_TOPIC_SIZE);
     mPayloadPublish++;
     if (mPayloadPublish > MAX_MESSAGES-1) {
@@ -634,6 +645,7 @@ void bmp280loop() {
 }
 
 boolean dsSetup(boolean rescan) {
+#ifndef ESP32
   byte i,j;
   byte present = 0;
   byte data[12];
@@ -686,9 +698,13 @@ boolean dsSetup(boolean rescan) {
     }
   }
   return true;
+#else
+  return false;
+#endif
 }
 
 void ds1820Loop() {
+#ifndef ESP32
   int i;
   ds18b20.requestTemperatures(); // Temp abfragen
   for (i = 0; i < MAX_DS_SENSORS; i++) {
@@ -710,9 +726,11 @@ void ds1820Loop() {
       //DEBUG1_PRINTLN(" Grad Celsius");
     }
   }
+#endif
 }
 
 void ds2450Loop() {
+#ifndef ESP32
   ds2450.update();
   if (ds2450.isError()) {
     DEBUG1_PRINT("Error reading from DS2450 device");
@@ -730,8 +748,9 @@ void ds2450Loop() {
       }
     }
   }
-  delay(500);
+#endif
 }
+
 void analogLoop() {
   analogWert = analogRead(A0);
   if (analogState == 0 && analogWert >= para.analog) {
@@ -770,9 +789,9 @@ void getData() {
 
 void setAlarmLED() {
   if ((reedAlarmtoggle++ & 7) == 1){
-    digitalWrite(ledPin, para.GpioLedOn);
+    digitalWrite(ledPin, ledPinOn);
   }else{
-    digitalWrite(ledPin, !para.GpioLedOn);
+    digitalWrite(ledPin, !ledPinOn);
   }
   //DEBUG1_PRINTLN("reedLED "+String(reedAlarmtoggle & 3)+" "+String(reedAlarmtoggle));
 }
@@ -792,24 +811,74 @@ void setSwitch(byte nr, boolean set) {
   yield();
 }
 
-void setPwm(byte nr, boolean set) {
+void setPwm(byte nr, byte set) {
+        DEBUG_PRINTLN("test PWM "+String(nr) +" "+String(para.pin[nr]));
   if (para.pin[nr] == PIN_PWM) {
-    if (set) {
-      digitalWrite(ledPin, para.GpioLedOn);
-#     ifndef ESP32
-        noTone(Pin[nr]);
-#     else
-        ledcWrite(0, 0);
-#     endif
-    } else {
-      digitalWrite(ledPin, !para.GpioLedOn);
-#     ifndef ESP32
-        tone(Pin[nr],200,500);
-        tone(Pin[nr],500,500);
-        tone(Pin[nr],200,500);
-#     else
-        ledcWrite(0, 128);
-#     endif
+    switch (set) {
+      case 0 :
+#       ifndef ESP32
+          noTone(Pin[nr]);
+#       else
+          ledcWrite(0, 0);
+#       endif
+        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        break;
+      // Dauerton bis set == 0
+      case 1 : 
+        digitalWrite(para.pin[nr], para.GpioOn[nr]);
+#       ifndef ESP32
+          tone(Pin[nr],420); // deutsche Einheitssirene vom Typ E 57
+#       else
+          ledcWrite(0, 128);
+#       endif
+        break;
+      // Bestätigung unscharf
+      case 2 : 
+        digitalWrite(para.pin[nr], para.GpioOn[nr]);
+#       ifndef ESP32
+          tone(Pin[nr],840); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          noTone(Pin[nr]);
+#       else
+          ledcWrite(0, 128);
+#       endif
+        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        break;
+      // Bestätigung scharf
+      case 3 : 
+        digitalWrite(para.pin[nr], para.GpioOn[nr]);
+        DEBUG_PRINTLN("in PWM "+String(nr)+" 3");
+#       ifndef ESP32
+          tone(Pin[nr],880); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          /*
+          tone(Pin[nr],1047); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          tone(Pin[nr],1397); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          tone(Pin[nr],1760); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          tone(Pin[nr],2092); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          */
+          noTone(Pin[nr]);
+#       else
+          ledcWrite(0, 128);
+#       endif
+        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        break;
+      // Bestätigung schaerfen
+      case 4 : 
+        digitalWrite(para.pin[nr], para.GpioOn[nr]);
+#       ifndef ESP32
+          tone(Pin[nr],2092); // deutsche Einheitssirene vom Typ E 57
+          delay(100);
+          noTone(Pin[nr]);
+#       else
+          ledcWrite(0, 128);
+#       endif
+        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        break;
     }
   }
 }
@@ -820,7 +889,7 @@ void setAlarm(){
     timerAlarmstate.activate();
   } else if (reedAlarmstate == 0){
     timerAlarmstate.deactivate();
-    digitalWrite(ledPin, !para.GpioLedOn);
+    digitalWrite(ledPin, !ledPinOn);
   }
   for (byte i = 0; i < PIN_MAX; i++) {
     if (para.pin[i] == PIN_ACTOR) 
@@ -871,26 +940,96 @@ void i2cScan(boolean mqtt = false) {
   byte error, address;
   int nDevices;
   char addr[3] = "00";
-  char msg[33];
+  char msg[37];
   
+  if (!mqtt) DEBUG1_PRINTLN("Reset...");
+  twi_stop();
+  twi_releaseBus();
+
+  boolean SCL_LOW = (digitalRead(sclPin) == LOW); // Check is SCL is Low.
+  if (SCL_LOW) { //If it is held low Arduno cannot become the I2C master. 
+    DEBUG1_PRINTLN("I2C bus error 1 SCL");
+    return;
+  }
+
+  boolean SDA_LOW = (digitalRead(sdaPin) == LOW);  // vi. Check SDA input.
+  if (SDA_LOW) {  
+    DEBUG1_PRINTLN("SDA_LOW ");
+  }
+  int clockCount = 20; // > 2x9 clock
+
+  while (SDA_LOW && (clockCount > 0)) { //  vii. If SDA is Low,
+    clockCount--;
+  // Note: I2C bus is open collector so do NOT drive SCL or SDA high.
+    pinMode(sclPin, INPUT); // release SCL pullup so that when made output it will be LOW
+    pinMode(sclPin, OUTPUT); // then clock SCL Low
+    delayMicroseconds(10); //  for >5uS
+    pinMode(sclPin, INPUT); // release SCL LOW
+    pinMode(sclPin, INPUT_PULLUP); // turn on pullup resistors again
+    // do not force high as slave may be holding it low for clock stretching.
+    delayMicroseconds(10); //  for >5uS
+    // The >5uS is so that even the slowest I2C devices are handled.
+    SCL_LOW = (digitalRead(sclPin) == LOW); // Check if SCL is Low.
+    int counter = 20;
+    while (SCL_LOW && (counter > 0)) {  //  loop waiting for SCL to become High only wait 2sec.
+      counter--;
+      delay(100);
+      SCL_LOW = (digitalRead(sclPin) == LOW);
+    }
+    if (SCL_LOW) { // still low after 2 sec error
+      DEBUG1_PRINTLN("I2C bus error 2 SCL");
+      return;
+      //return 2; // I2C bus error. Could not clear. SCL clock line held low by slave clock stretch for >2sec
+    }
+    SDA_LOW = (digitalRead(sdaPin) == LOW); //   and check SDA input again and loop
+  }
+  if (SDA_LOW) { // still low
+      DEBUG1_PRINTLN("I2C bus error 3 SDA");
+      return;
+    //return 3; // I2C bus error. Could not clear. SDA data line held low
+  }
+
+  // else pull SDA line low for Start or Repeated Start
+  pinMode(sdaPin, INPUT); // remove pullup.
+  pinMode(sdaPin, OUTPUT);  // and then make it LOW i.e. send an I2C Start or Repeated start control.
+  // When there is only one I2C master a Start or Repeat Start has the same function as a Stop and clears the bus.
+  /// A Repeat Start is a Start occurring after a Start with no intervening Stop.
+  delayMicroseconds(10); // wait >5uS
+  pinMode(sdaPin, INPUT); // remove output low
+  pinMode(sdaPin, INPUT_PULLUP); // and make SDA high i.e. send I2C STOP control.
+  delayMicroseconds(10); // x. wait >5uS
+  pinMode(sdaPin, INPUT); // and reset pins as tri-state inputs which is the default state on reset
+  pinMode(sclPin, INPUT);
+  Wire.begin();
+  return;
+  //return 0; // all ok
+
   if (!mqtt) DEBUG1_PRINTLN("Scanning...");
   nDevices = 0;
+  int _data;
   for (address = 1; address < 127; address++)
   {
     // The i2c scanner uses the return value of
     // the Write.endTransmisstion to see if
     // a device did acknowledge to the address.
+    Wire.begin(sdaPin, sclPin, 100000); 
     Wire.beginTransmission(address);
+    //Wire.requestFrom(address, 1);
+    //_data = Wire.read();
     error = Wire.endTransmission();
     if (error == 0){
-      strcpy(msg,"I2C device found at address 0x");
+      strcpy(msg,"I2C device found at address 0x     ");
+      msg[33] = hex[(_data & 0xF0) >> 4];
+      msg[34] = hex[_data & 0x0F];
       nDevices++;
     } else if (error == 4){
       strcpy(msg,"Unknown error    at address 0x");
+      msg[33] = hex[(error & 0xF0) >> 4];
+      msg[34] = hex[error & 0x0F];
     }
     msg[30] = hex[(address & 0xF0) >> 4];
     msg[31] = hex[address & 0x0F];
-    msg[32] = '\0';
+    msg[35] = '\0';
     addr[0] = msg[30];
     addr[1] = msg[31];
     if (error == 0 || error == 4){
@@ -937,6 +1076,7 @@ void setConfig(byte nr, char receivedChar) {
       
       timerMqtt.deactivate();
       timerSensors.deactivate();
+      timerKeypadloop.deactivate();
       timerReconnect.deactivate();
       timerNtp.deactivate();
       timerAlarmloop.deactivate();
@@ -966,6 +1106,7 @@ void setConfig(byte nr, char receivedChar) {
       }
       timerMqtt.activate();
       timerSensors.activate();
+      timerKeypadloop.activate();
       timerReconnect.activate();
       timerNtp.activate();
       timerAlarmloop.activate();
@@ -987,13 +1128,14 @@ void setConfig(byte nr, char receivedChar) {
 }
 
 void setOSS(byte nr, char receivedChar) {
+
   DEBUG1_PRINT("OSS ");
   DEBUG1_PRINTLN(nr);
   if (nr == 0) {
-    bmp.setSampling(Adafruit_BME280::MODE_NORMAL,     /* Operating Mode. */
-                        Adafruit_BME280::SAMPLING_X1,     /* Temp. oversampling */
-                        Adafruit_BME280::SAMPLING_X1,    /* Pressure oversampling */
-                        Adafruit_BME280::FILTER_OFF,      /* Filtering. */
+    bmp.setSampling(Adafruit_BME280::MODE_NORMAL,     // Operating Mode. 
+                        Adafruit_BME280::SAMPLING_X1,     // Temp. oversampling 
+                        Adafruit_BME280::SAMPLING_X1,    // Pressure oversampling 
+                        Adafruit_BME280::FILTER_OFF,      // Filtering. 
                         Adafruit_BME280::STANDBY_MS_1000);
   }
   if (nr == 1){
@@ -1050,7 +1192,7 @@ void set(char request, byte nr, char payload){
   } else if (request == 'D') {
     setArmed(payload == '1');
   } else if (request == 'P' && nr >= 0 && nr < PIN_MAX) {
-    setPwm(nr, payload == '1');
+    setPwm(nr, payload - '0');
   }
 }
   
@@ -1079,83 +1221,169 @@ void callback(char* topic, byte* payload, unsigned int mLength) {
   mqttSet("ack", cmessage);
 }
 
+// CR+LF, eventuell anpassen unter Linux ... == 0x0D
+#define serialPosEnd 0x0A
+#define serialKeypadEnd '#'
+#define serialPosMax 30
+char serialIn[serialPosMax+1];
+byte serialPos = 0;
+
+
+void serialInSet(char in){
+  if (serialPos < serialPosMax){
+    serialIn[serialPos++] = in;
+    serialIn[serialPos] = 0;
+  } else {
+    serialIn[serialPos-1] = serialPosEnd;
+  }
+}
+
 void readInput() {
   if (Serial.available() > 0) {
-    serialIn[serialPos++] = Serial.read();
-    serialIn[serialPos] = 0;
+    serialInSet(Serial.read());
   }
-  // CR+LF, eventuell anpassen unter Linux ... == 0x0D
-  if (serialIn[serialPos-1] == 0x0A){
-    serialPos = 0;
-    char request = serialIn[0];
-    byte nr= serialIn[1] - '0';
-    char payload= serialIn[2];
-    
-    if (request == 'c') {
-      //Einstellen();
-      mqttReconnect();  
-    } else if (request == 'f') {
-#ifndef ESP32
-      FSInfo fs_info;
-      Serial.println("Please wait 30 secs for SPIFFS to be formatted");
-      SPIFFS.format();
-      Serial.println("Spiffs formatted");
-      //See more at: http://www.esp8266.com/viewtopic.php?f=29&t=8194#sthash.mj02URAZ.dpuf
-      SPIFFS.info(fs_info);
-      DEBUG1_PRINT("totalBytes ");
-      DEBUG1_PRINT(fs_info.totalBytes);
-#endif
-    } else if (request == 'i') {
-      i2cScan();
-    } else if (request == 'l') {
-      listSpiffs();
-    } else if (request == 'w') {
-      Serial.println("");
-      Serial.println("Mit Wlan verbunden");
-      Serial.print("IP Adresse: ");
-      Serial.println(WiFi.localIP());
-      //Serial.println("Zeit: " + PrintDate(now()) + " " + PrintTime(now()));
-      //printUser();
-      Serial.println(getSsid());
-      Serial.println(getConfig());
-      Serial.println(getIndex());
-    } else if (request == 'A' || request == 'C' || request == 'D' || request == 'S' || request == 'O' || request == 'P') { 
-      set(request, nr, payload);
+  if (serialIn[serialPos-1] == serialPosEnd){
+    //keypad-Eingabe mit '#' abgeschlossen
+    if (serialIn[serialPos-2] == serialKeypadEnd){
+      serialIn[serialPos-2] = '\0';
+      serialPos = 0;
+      DEBUG3_PRINT("Serial out: ");
+      DEBUG3_PRINTLN(serialIn);
+      int qos = 11;
+      boolean erg = false;
+      if (!erg && (qos-- > 0) ){
+        // PIN in spezielles Topic einfügen. Dieses Topic sollte nur FHEM lesen können
+        erg = client.publish(para.mKeypad, serialIn, false);
+        DEBUG_PRINT(erg);
+        DEBUG_PRINTLN(serialIn);
+      }
+    }
+    {
+      serialPos = 0;
+      char request = serialIn[0];
+      byte nr= serialIn[1] - '0';
+      char payload= serialIn[2];
+      
+      if (request == 'c') {
+        //Einstellen();
+        mqttReconnect();  
+      } else if (request == 'b') {
+        bleScanActive = !bleScanActive;
+        DEBUG_PRINT("BLE-Scan: ");
+        DEBUG_PRINTLN(bleScanActive);
+#       ifdef BLE
+          blePrintIRK();
+#       endif
+      } else if (request == 'f') {
+#       ifndef ESP32
+          FSInfo fs_info;
+          Serial.println("Please wait 30 secs for SPIFFS to be formatted");
+          SPIFFS.format();
+          Serial.println("Spiffs formatted");
+          //See more at: http://www.esp8266.com/viewtopic.php?f=29&t=8194#sthash.mj02URAZ.dpuf
+          SPIFFS.info(fs_info);
+          DEBUG_PRINT("totalBytes ");
+          DEBUG_PRINT(fs_info.totalBytes);
+#       else
+          SPIFFS.format();
+#       endif
+      } else if (request == 'i') {
+        i2cScan();
+      } else if (request == 'l') {
+        listSpiffs();
+      } else if (request == 'w') {
+        Serial.println("");
+        Serial.println("Mit Wlan verbunden");
+        Serial.print("IP Adresse: ");
+        Serial.println(WiFi.localIP());
+        //Serial.println("Zeit: " + PrintDate(now()) + " " + PrintTime(now()));
+        //printUser();
+        Serial.println(getSsid());
+        Serial.println(getConfig());
+        Serial.println(getIndex());
+      } else if (nr >= 0 && nr < PIN_MAX && (request == 'A' || request == 'C' || request == 'D' || request == 'S' || request == 'O' || request == 'P')) { 
+        set(request, nr, payload);
+      }
     }
   }
 }
 
 void setupPinmode(){
+  byte i2csda = 0;
+  byte i2cscl = 0;
+  para.i2c = 0;
+  para.onewire = 0;
+  pwmPin = -1;
+  ledPin = -1;
   for (byte i = 0; i < PIN_MAX; ++i) {
-    //DEBUG1_PRINT(tochararray(cstr, pinState[i]));
-    //DEBUG1_PRINT(tochararray(cstr, "INPUT_PULLUP ",tochararray(cpart, pinState[i])));
-    if (para.pin[i] == PIN_SENSOR || para.pin[i] == PIN_ALARM) {
-      pinMode(Pin[i], INPUT_PULLUP);
-      pinState[i] = para.GpioOn[i] == 0; //ok
-      mqttSet(PinName[i], tochararray(cstr, "INPUT_PULLUP ",tochararray(cpart, pinState[i])));
-    }else if (para.pin[i] == PIN_ACTOR || para.pin[i] == PIN_SWITCH || para.pin[i] == PIN_LED) {
-      pinMode(Pin[i], OUTPUT);
-      // default: Switch off, LED off
-      pinState[i] = !para.GpioOn[i];
-      digitalWrite(Pin[i], pinState[i]);
-      mqttSet(PinName[i], tochararray(cstr, "OUTPUT ",tochararray(cpart, pinState[i])));
-    }else if (para.pin[i] == PIN_PWM) {
-#     ifdef ESP32
-        ledcSetup(0, 1000, 8);
-        ledcAttachPin(Pin[i], 0);
-#     endif
-      mqttSet(PinName[i], "PWM");
-    } else {
-      mqttSet(PinName[i], tochararray(cstr, "UNDEF ",tochararray(cpart, para.pin[i])));
+    switch (para.pin[i]) {
+      case PIN_SENSOR :
+      case PIN_ALARM :  pinMode(Pin[i], INPUT_PULLUP);
+                        pinState[i] = para.GpioOn[i] == 0; //ok
+                        mqttSet(PinName[i], tochararray(cstr, "INPUT_PULLUP ",tochararray(cpart, pinState[i])));
+                        break;
+      case PIN_ACTOR :
+      case PIN_SWITCH : pinMode(Pin[i], OUTPUT);
+                        // default: Switch off, LED off
+                        pinState[i] = !para.GpioOn[i];
+                        digitalWrite(Pin[i], pinState[i]);
+                        mqttSet(PinName[i], tochararray(cstr, "OUTPUT ",tochararray(cpart, pinState[i])));
+                        break;
+      case PIN_LED :    pinMode(Pin[i], OUTPUT);
+                        // default: Switch off, LED off
+                        pinState[i] = !para.GpioOn[i];
+                        digitalWrite(Pin[i], pinState[i]);
+                        ledPin = Pin[i];
+                        ledPinOn = para.GpioOn[i];
+                        mqttSet(PinName[i], tochararray(cstr, "LED ",tochararray(cpart, pinState[i])));
+                        break;
+      case PIN_1WIRE :  ONE_WIRE_BUS = Pin[i];
+                        para.onewire = 1;
+                        mqttSet(PinName[i], tochararray(cstr, "1Wire ",tochararray(cpart, pinState[i])));
+                        break;
+      case PIN_SCL   :  sclPin = Pin[i];
+                        i2cscl++;
+                        mqttSet(PinName[i], tochararray(cstr, "WireSCL ",tochararray(cpart, pinState[i])));
+                        break;
+      case PIN_SDA   :  sdaPin = Pin[i];
+                        i2csda++;
+                        mqttSet(PinName[i], tochararray(cstr, "WireSDA ",tochararray(cpart, pinState[i])));
+                        break;
+      case PIN_PWM   :  pwmPin = Pin[i];
+                        pwmPinOn = para.GpioOn[i];
+                        pinMode(Pin[i], OUTPUT);
+                        pinState[i] = !para.GpioOn[i];
+                        digitalWrite(Pin[i], pinState[i]);
+#                       ifdef ESP32
+                          ledcSetup(0, 1000, 8);    // channel, freq, resolution
+                          ledcAttachPin(Pin[i], 0);
+#                       endif
+                        mqttSet(PinName[i], tochararray(cstr, "PWM ",tochararray(cpart, pinState[i])));
+                        break;
+      default :         mqttSet(PinName[i], tochararray(cstr, "UNDEF ",tochararray(cpart, para.pin[i])));
+                        break;
     }
+  }
+  if (i2csda == 1 && i2cscl == 1) {
+    para.i2c = 1;
   }
   pinMode(A0, INPUT);
 }
 
+void testPara() {
+  if (para.checksum != 123456) {
+    para.checksum = 999999;
+  }
+  if (para.timerMsec[0] < 100) para.timerMsec[0] = 1000;
+  if (para.timerMsec[1] < 1000) para.timerMsec[1] = 60000;
+  if (para.timerMsec[2] < 1000) para.timerMsec[2] = 20000;
+}
+
 void setupI2c(boolean rescan){
   if (para.i2c){
+    Wire.begin(sdaPin, sclPin); //ESP32 ...,100000 ? 
+    
     if (!bmpActive){
-      Wire.begin(sdaPin, sclPin); 
       // in bmp.begin() keine Pinzuordnung möglich
       // bmpActive = bmp.begin(sdaPin, sclPin);
       bmpActive = bmp.begin();
@@ -1165,11 +1393,11 @@ void setupI2c(boolean rescan){
         DEBUG1_PRINT("BMP init success! ");
         mqttSet("BMP-Typ", tochararray(cstr, bmpTyp));//"+0x"+String(bmpTyp, HEX));
         DEBUG1_PRINT("Typ "); DEBUG1_PRINTLN(bmpTyp, HEX);
-        bmp.setSampling(Adafruit_BME280::MODE_NORMAL,     /* Operating Mode. */
-                        Adafruit_BME280::SAMPLING_X1,     /* Temp. oversampling */
-                        Adafruit_BME280::SAMPLING_X1,    /* Pressure oversampling */
-                        Adafruit_BME280::SAMPLING_X1,    /* Pressure oversampling */
-                        Adafruit_BME280::FILTER_OFF,      /* Filtering. */
+        bmp.setSampling(Adafruit_BME280::MODE_NORMAL,     // Operating Mode. 
+                        Adafruit_BME280::SAMPLING_X1,     // Temp. oversampling 
+                        Adafruit_BME280::SAMPLING_X1,     // Pressure oversampling 
+                        Adafruit_BME280::SAMPLING_X1,     // Pressure oversampling 
+                        Adafruit_BME280::FILTER_OFF,      // Filtering.
                         Adafruit_BME280::STANDBY_MS_1000);
        } else {
         DEBUG1_PRINT("BMP failed! ");
@@ -1183,9 +1411,14 @@ void setupI2c(boolean rescan){
         DEBUG1_PRINTLN("Lightsensor init success!");
       }
     }
+    if (!pcf8574Active){
+      pcf8574Active = (pcf8574.begin() == 0);
+      DEBUG_PRINT("Keypad pcf8574 ");
+      DEBUG_PRINTLN(pcf8574Active);
+    }
   }
   if (!para.i2c){
-    DEBUG1_PRINTLN("BMP/BH1750 init failed!");
+    DEBUG1_PRINTLN("I2C failed!");
   } else if (!bmpActive and !bh1750Active) {
     DEBUG1_PRINTLN("BMP/BH1750 init failed!");
   }
@@ -1205,9 +1438,97 @@ void setup1wire(boolean rescan){
     DEBUG1_PRINTLN("no 1wire");
 }
 
+#define keymapRows 4
+#define keymapCols 4
+#define keymapClick true
+boolean keymapPause = true;
+uint8_t pcf8574Last[keymapCols]= {0};
+const char keymap[keymapRows][keymapCols + 1] =
+{
+  "123A",
+  "456B",
+  "789C",
+  "*0#D"
+};
+void keypadloop(){
+  uint8_t i,j = 0;
+  uint8_t test = 0;
+  uint8_t keymapX = 0;
+  if (pcf8574Active){
+    test = pcf8574.read8();
+    // wird so nie erreicht, i2c hängt
+    /*if (test == 0xFF){
+      DEBUG_PRINT("Wire ");
+      DEBUG_PRINT(Wire.status());
+      Wire.begin();
+      DEBUG_PRINT("Keypad pcf8574 ");
+      pcf8574.begin();
+      pcf8574.write8(0x0F);
+      test = pcf8574.read8();
+      DEBUG_PRINTLN(pcf8574.lastError());
+    }*/
+    //if (test != 0x0F){
+    if (test != 0xF0){
+      DEBUG_PRINT("keypad1 ");
+      DEBUG_PRINTLN(test, BIN);
+      for (i = 0; i < keymapCols; i++){
+        pcf8574.write8(~(0x08 >> i)); // links nach rechts
+        //pcf8574.write8(0xF0 | (0x08 >> i)); // links nach rechts
+        delay(3);
+        test = ~(pcf8574.read8());
+        DEBUG_PRINT("keypad2 ");
+        DEBUG_PRINTLN(test, BIN);
+        if (keymapPause){
+          pcf8574Last[i] = 0;
+          keymapPause = false;
+        }
+        if (test != pcf8574Last[i]){
+          pcf8574Last[i] = test;
+          if (test > 0x0F){
+            for (j = 0; j < keymapRows; j++){
+              keymapX = test & (0x80 >> j);
+              if (keymapX){
+                digitalWrite(ledPin, ledPinOn);
+                if (keymapClick && pwmPin >= 0){
+                  // default tone() / noTone() erhitzt meine passiven Buzzer, 
+                  // unbedingt nach Nutzung auf !pwmPinOn.
+                  // default 0, benötigt 1 =>  pwmPinOn auf 0 einstellen
+                  digitalWrite(pwmPin, pwmPinOn);
+                  tone(pwmPin,220);
+                }
+                delay(100);
+                if (keymapClick && pwmPin >= 0){
+                  noTone(pwmPin);
+                  digitalWrite(pwmPin, !pwmPinOn);
+                }
+                digitalWrite(ledPin, !ledPinOn);
+                serialInSet(keymap[j][i]);
+                if (keymap[j][i] == serialKeypadEnd){
+                  serialInSet(0x0A);
+                }
+                DEBUG2_PRINT("keypad ");
+                DEBUG3_PRINT(i);
+                DEBUG3_PRINT(" ");
+                DEBUG3_PRINT(pcf8574Last[i], BIN);
+                DEBUG3_PRINT(" ");
+                DEBUG2_PRINTLN(keymap[j][i]);
+              }
+            }
+          }
+        }
+      }
+      pcf8574.write8(0xF0); // warten, ob irgendeine Taste gedrückt wird
+    } else {
+      keymapPause = true;
+    }
+  }
+}
+
 void setup(){
-  Serial.begin(9600);
-  DEBUG1_PRINTLN();
+  Serial.begin(115200);
+  DEBUG1_PRINTLN(ARDUINO_BOARD);
+  DEBUG1_PRINTLN(ARDUINO_VARIANT);
+  DEBUG1_PRINTLN(F_CPU);
   DEBUG1_PRINTLN(board);
   // getSystem();
   getPara();
@@ -1224,7 +1545,10 @@ void setup(){
   DEBUG1_PRINTLN("timerAlarmloop");
   timerSensors.begin(para.timerMsec[1], getData);
   DEBUG1_PRINTLN("timerSensors");
-
+  timerKeypadloop.begin(100, keypadloop);
+#ifdef BLE
+  setupBLE();
+#endif
 #ifndef ESP32
   stationDisconnectedHandler = WiFi.onStationModeDisconnected(onDisconnect);
   stationGotIpHandler = WiFi.onStationModeGotIP(onGotIP);
@@ -1255,6 +1579,8 @@ void loop(){
   yield();
   timerSensors.update();
   yield();
+  timerKeypadloop.update();
+  yield();
   timerRestartDelay.update();
   yield();
   if (wifiStation){
@@ -1270,4 +1596,7 @@ void loop(){
   http.handleClient();
   yield();
   readInput();
+#ifdef BLE
+  bleLoop();
+#endif
 }

@@ -192,6 +192,10 @@ String getConfig(){
     json += "\",\"mPre\":\""+ String(para.mPre);
     json += "\",\"mSub\":\""+ String(para.mSub);
     json += "\",\"mLwt\":\""+ String(para.mLwt);
+    for (i = 0; i < strlen(para.mKeypad); i++){
+      if (!isgraph(para.mKeypad[i])) para.mKeypad[i] = '.';
+    }
+    json += "\",\"mKeypad\":\""+ String(para.mKeypad);
     for (i = 0; i < 3; i++) {
       json += "\",\"timerMsec"+String(i)+"\":\""+ String(para.timerMsec[i]);
     }
@@ -200,7 +204,6 @@ String getConfig(){
       json += "\",\"pin"+String(i)+"\":\""+ String(para.pin[i]);
       json += "\",\"GpioOn"+String(i)+"\":\""+ String(para.GpioOn[i]);
     }
-    json += "\",\"GpioLedOn\":\""+ String(para.GpioLedOn);
     json += "\",\"analog\":\""+ String(para.analog);
     json += "\",\"checksum\":\""+ String(para.checksum + 1);
     json += "\"}";
@@ -315,6 +318,7 @@ void httpConfig(){
     strncpy( para.mPre, http.arg("mPre").c_str(), 10); para.mPre[10 - 1] = '\0';
     strncpy( para.mSub, http.arg("mSub").c_str(), 10); para.mSub[10 - 1] = '\0';
     strncpy( para.mLwt, http.arg("mLwt").c_str(), 10); para.mLwt[10 - 1] = '\0';
+    strncpy( para.mKeypad, http.arg("mKeypad").c_str(), 25); para.mLwt[25 - 1] = '\0';
     para.timerMsec[0] = http.arg("timerMsec0").toInt();
     para.timerMsec[1] = http.arg("timerMsec1").toInt();
     para.timerMsec[2] = http.arg("timerMsec2").toInt();
@@ -322,7 +326,6 @@ void httpConfig(){
       para.pin[i] = http.arg("pin"+String(i)).toInt();
       para.GpioOn[i] = http.arg("GpioOn"+String(i)).toInt();
     }
-    para.GpioLedOn = http.arg("GpioLedOn").toInt();
     para.analog = http.arg("analog").toInt();
     para.checksum = 123456; // ending int read 
     // 512k: 3c000 - 3ffff
@@ -381,7 +384,11 @@ void listSpiffs(){
 #endif
 }
 void httpSetup() {
+#ifdef ESP32
+  SPIFFS.begin(true); // formatOnFail
+#else
   SPIFFS.begin();
+#endif
   listSpiffs();  
   //SERVER INIT
   /* Set page handler functions */
@@ -438,20 +445,20 @@ void httpSetup() {
     String json = "[";
     for (int i = 0; i < ap_count; i++)
     {
-#ifndef ESP32
-      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
-      //sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
       if (i > 0)
         json += ",\n";  
+#ifndef ESP32
+      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
       String network = "{\"SSID\":\""+ssid+"\",\"channel\":\""+String(channel)+
             "\",\"RSSI\":\""+String(RSSI)+"\",\"encryption\":\""+(encryptionType == ENC_TYPE_NONE ? " " : "*")+
             "\",\"hidden\":\""+(isHidden ? "hidden" : "")+"\" }";
-      //json += %s%s%d%s%s, , channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
+#else
+      String network = "{\"SSID\":\""+WiFi.SSID(i)+"\",\"channel\":\""+String(WiFi.channel(i))+
+            "\",\"RSSI\":\""+String(WiFi.RSSI(i))+"\",\"encryption\":\""+(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*", "")+
+            "\",\"hidden\":\" \" }";
+#endif
       json += network;
       DEBUG3_PRINTLN(network);
-#else
-      sprintf(json, "%s{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", json, WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i), WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*", "");
-#endif
     }
     json += "]";
     http.send(200, "application/json", json);
