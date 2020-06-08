@@ -40,13 +40,11 @@ void wifiStaSetup() {
       DEBUG1_PRINT(", Client: ");
       DEBUG1_PRINT(para.mClient);
       DEBUG1_PRINTLN(" ok");
-      WiFi.setAutoReconnect(true);
+      // besser nicht automatisch WiFi.setAutoReconnect(true);
       wifiStation = true;
       mqttSet("IP", tochararray(cstr, WiFi.localIP().toString()));
       mqttSet("RSSI", tochararray(cstr, WiFi.RSSI()));
     }
-  } else {
-    wifiStation = true;
   }
 }
 
@@ -74,9 +72,14 @@ void wifiAPSetup()
   DEBUG_PRINTLN(WiFi.softAPIP());
 }
 #ifndef ESP32
+/* IPAddress ip;
+   IPAddress mask;
+   IPAddress gw; */
 void onGotIP(const WiFiEventStationModeGotIP& event){
-  /*mqttSet("connect", "gotIp", false);
-  Serial.print("Station connected, IP: ");
+  mqttSet("connect2", tochararray(cstr, event.ip.toString()), false);
+  wifiStation = true;
+
+  /*Serial.print("Station connected, IP: ");
   Serial.println(WiFi.localIP());*/
 };
 
@@ -148,7 +151,7 @@ void mqttReconnect() {
   if (!client.connected()) {
     // MQTT disconnected
     mqttFailed();
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!wifiStation) {
       // WiFi disconnected
       wifiStaSetup();
     }

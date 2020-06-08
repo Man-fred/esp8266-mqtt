@@ -1,10 +1,13 @@
-char mVersionNr[] = "V02-00-05.esp8266-mqtt.ino.";
+/* 
+ *  V02-00-08: wie -07, aber Debuglevel 5 und mqtt feste IP
+ */
+char mVersionNr[] = "V02-00-10.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
-#define DEBUG 0
+#define DEBUG 4
 /*
    Wire - I2C Scanner
 
@@ -249,7 +252,8 @@ boolean mqttConnected = false;
 Adafruit_BME280 bmp;
 boolean bmpActive = false;
 boolean bmeActive = false;
-char bmpTyp;
+uint32_t bmpTyp;
+byte bmpADDR;
 double bmpT = 0;
 double bmpP = 0;
 double bmeH = 0;
@@ -472,6 +476,7 @@ void getPara() {
   if (para.pVersion > 0 && (para.pVersion2 == (123456 + para.pVersion))) {
     DEBUG1_PRINTLN("Flash loaded");
     testPara();
+    //Notfallsystem, MQTT übersteuern: strncpy( para.mqtt_server, "192.168.178.126", 20); para.mqtt_server[20 - 1] = '\0';
   } else {
     // Default Parameter setzen //
     para.pVersion = 0;
@@ -1388,11 +1393,12 @@ void setupI2c(boolean rescan){
       // bmpActive = bmp.begin(sdaPin, sclPin);
       bmpActive = bmp.begin();
       bmpTyp = bmp.sensorID();
+      bmpADDR = bmp.sensorADDR();
       bmeActive = (bmpTyp == 0x60);
+      DEBUG1_PRINT("Addr 0x"); DEBUG1_PRINT(bmpADDR, HEX); DEBUG1_PRINT(", Typ 0x"); DEBUG1_PRINTLN(bmpTyp, HEX);
+      mqttSet("BMP-Typ", tochararray(cstr, bmpTyp));//"-0x"+String(bmp.sensorID(), HEX));
       if (bmpActive) {
         DEBUG1_PRINT("BMP init success! ");
-        mqttSet("BMP-Typ", tochararray(cstr, bmpTyp));//"+0x"+String(bmpTyp, HEX));
-        DEBUG1_PRINT("Typ "); DEBUG1_PRINTLN(bmpTyp, HEX);
         bmp.setSampling(Adafruit_BME280::MODE_NORMAL,     // Operating Mode. 
                         Adafruit_BME280::SAMPLING_X1,     // Temp. oversampling 
                         Adafruit_BME280::SAMPLING_X1,     // Pressure oversampling 
@@ -1401,8 +1407,6 @@ void setupI2c(boolean rescan){
                         Adafruit_BME280::STANDBY_MS_1000);
        } else {
         DEBUG1_PRINT("BMP failed! ");
-        DEBUG1_PRINT("Typ "); DEBUG1_PRINTLN(bmpTyp, HEX);
-        mqttSet("BMP-Typ", tochararray(cstr, bmp.sensorID()));//"-0x"+String(bmp.sensorID(), HEX));
        }
     }
     if (!bh1750Active){

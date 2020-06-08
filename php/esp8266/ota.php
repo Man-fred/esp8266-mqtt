@@ -3,18 +3,18 @@
 const debug = false;
 
 // Dateiname: Vnn-nn-nn.<sketch>.ino.<board>.bin
-$db = array(
-// MTQQ
-    "esp8266-mqtt.ino.nodemcu" => "V02-00-00.esp8266-mqtt.ino.nodemcu.bin",
-    "esp8266-mqtt.ino.d1_mini" => "V02-00-00.esp8266-mqtt.ino.d1_mini.bin",
-// Relais-Webschalter mit IIC
-    "iic.nodemcu" => "V00-04-02.iic.nodemcu.bin",
-    "iic.d1_mini" => "V01-00-03.iic.d1_mini.bin",
-// Relais-Webschalter ohne IIC, minimale Hardwarenutzung
-    "min.nodemcu" => "V00-04-02.min.nodemcu.bin",
-    "min.d1_mini" => "V00-04-02.min.d1_mini.bin",
-);
-
+/*
+	$tests = scandir(".");
+	print_r($tests);
+	$upd = "";
+	$fl = preg_grep("/^V..-..-..\." . "esp8266-mqtt.ino.nodemcu" . "\.bin/", $tests); 
+	foreach ($fl as $value){
+      if ($value > $upd){
+		  $upd = $value;
+	  }
+    }
+	print_r($upd);
+*/
 $timestamp = "\n" . date("d.m.Y - H:i");
 file_put_contents("update.log", $timestamp . " Start update, client " . $_SERVER['REMOTE_ADDR']
         . ", User-Agent " . $_SERVER['HTTP_USER_AGENT'] 
@@ -91,23 +91,14 @@ $esp_firmware = "";
 $esp_key = "";
 $esp_version = $_SERVER['HTTP_X_ESP8266_VERSION'];
 
-$esp_key = $_SERVER['HTTP_X_ESP8266_STA_MAC'];
-if (isset($db[$esp_key])) {
-	// obsolet, ganz fruehe Version
-    $esp_firmware = $db[$esp_key];
-}
-if ($esp_firmware == "") {
-	$esp_key = substr($esp_version, 10, 11);
-	// obsolet ab V01-06-05
-	if (isset($db[$esp_key])) {
-		$esp_firmware = $db[$esp_key];
-	}
-}
-if ($esp_firmware == "") {
-	$esp_key = substr($esp_version, 10);
-	if (isset($db[$esp_key])) {
-		$esp_firmware = $db[$esp_key];
-	}
+$esp_key = substr($esp_version, 10);
+$uploads = scandir(".");
+$upd = "";
+$fl = preg_grep("/^V..-..-..\." . $esp_key . "\.bin/", $uploads); 
+foreach ($fl as $value){
+  if ($value > $esp_firmware){
+	  $esp_firmware = $value;
+  }
 }
 
 if ($esp_firmware != "") {
