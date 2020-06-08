@@ -61,55 +61,79 @@ Adafruit_BME280::Adafruit_BME280(int8_t cspin, int8_t mosipin, int8_t misopin,
                                  int8_t sckpin)
     : _cs(cspin), _mosi(mosipin), _miso(misopin), _sck(sckpin) {}
 
+Adafruit_BME280::~Adafruit_BME280(void) {
+  if (temp_sensor) {
+    delete temp_sensor;
+  }
+  if (pressure_sensor) {
+    delete pressure_sensor;
+  }
+  if (humidity_sensor) {
+    delete humidity_sensor;
+  }
+}
+
+// --> change in esp8266-mqtt
 /*!
  *   @brief  Initialise sensor with given parameters / settings
  *   @param theWire the I2C object to use
  *   @returns true on success, false otherwise
  */
-bool Adafruit_BME280::begin(TwoWire *theWire) {
+/*bool Adafruit_BME280::begin(TwoWire *theWire) {
   _wire = theWire;
   _i2caddr = BME280_ADDRESS;
   return init();
-}
+}*/
 
 /*!
  *   @brief  Initialise sensor with given parameters / settings
  *   @param addr the I2C address the device can be found on
  *   @returns true on success, false otherwise
  */
-bool Adafruit_BME280::begin(uint8_t addr) {
+/*bool Adafruit_BME280::begin(uint8_t addr) {
   _i2caddr = addr;
   _wire = &Wire;
   return init();
-}
+}*/
+// <-- change in esp8266-mqtt
 
 /*!
  *   @brief  Initialise sensor with given parameters / settings
  *   @param addr the I2C address the device can be found on
- *   @param theWire the I2C object to use
+ *   @param theWire the I2C object to use, defaults to &Wire
  *   @returns true on success, false otherwise
  */
 bool Adafruit_BME280::begin(uint8_t addr, TwoWire *theWire) {
+  bool status = false;
   _i2caddr = addr;
   _wire = theWire;
-  return init();
+  status = init();
+// --> change in esp8266-mqtt
+  if (_i2caddr == BME280_ADDRESS && !status) {
+    _i2caddr = BME280_ADDRESS_ALTERNATE;
+    status = init();
+	}
+// <-- change in esp8266-mqtt
+  return status;
 }
 
 /*!
  *   @brief  Initialise sensor with given parameters / settings
  *   @returns true on success, false otherwise
  */
-bool Adafruit_BME280::begin(void) {
+/*bool Adafruit_BME280::begin(void) {
   bool status = false;
   _i2caddr = BME280_ADDRESS;
   _wire = &Wire;
   status = init();
+// --> change in esp8266-mqtt
   if (!status) {
     _i2caddr = BME280_ADDRESS_ALTERNATE;
     status = init();
+// <-- change in esp8266-mqtt
   }
   return status;
-}
+}*/
 
 /*!
  *   @brief  Initialise sensor with given parameters / settings
@@ -137,22 +161,21 @@ bool Adafruit_BME280::init() {
   // check if sensor, i.e. the chip ID is correct
   _sensorID = read8(BME280_REGISTER_CHIPID);
   
+// --> change in esp8266-mqtt
   if (!(_sensorID == BME280_CHIPID || (_sensorID >= BMP280_CHIPID_MIN && _sensorID <= BMP280_CHIPID_MAX) ) )
     return false;
+// <-- change in esp8266-mqtt
 
   // reset the device using soft-reset
   // this makes sure the IIR is off, etc.
   write8(BME280_REGISTER_SOFTRESET, 0xB6);
 
   // wait for chip to wake up.
-  delay(300);
+  delay(10); //300?
 
   // if chip is still reading calibration, delay
-  int i = 0;
-  while (isReadingCalibration() && i < 20) {
-    delay(100);
-	i++;
-  }
+  while (isReadingCalibration())
+    delay(10); //max 20 * 100?
 
   readCoefficients(); // read trimming parameters, see DS 4.2.2
 
@@ -189,6 +212,10 @@ void Adafruit_BME280::setSampling(sensor_mode mode,
   _configReg.filter = filter;
   _configReg.t_sb = duration;
 
+  // making sure sensor is in sleep mode before setting configuration
+  // as it otherwise may be ignored
+  write8(BME280_REGISTER_CONTROL, MODE_SLEEP);
+
   // you must make sure to also set REGISTER_CONTROL after setting the
   // CONTROLHUMID register, otherwise the values won't be applied (see
   // DS 5.4.3)
@@ -196,6 +223,8 @@ void Adafruit_BME280::setSampling(sensor_mode mode,
   write8(BME280_REGISTER_CONFIG, _configReg.get());
   write8(BME280_REGISTER_CONTROL, _measReg.get());
 }
+
+// --> change in esp8266-mqtt
 void Adafruit_BME280::setSampling(sensor_mode mode,
                                   sensor_sampling tempSampling,
                                   sensor_sampling pressSampling,
@@ -203,6 +232,8 @@ void Adafruit_BME280::setSampling(sensor_mode mode,
                                   standby_duration duration) {
   setSampling(mode, tempSampling, pressSampling, SAMPLING_X16, filter, duration);
 }
+// <-- change in esp8266-mqtt
+
 /*!
  *   @brief  Encapsulate hardware and software SPI transfer into one
  * function
@@ -409,9 +440,9 @@ void Adafruit_BME280::readCoefficients(void) {
   _bme280_calib.dig_H1 = read8(BME280_REGISTER_DIG_H1);
   _bme280_calib.dig_H2 = readS16_LE(BME280_REGISTER_DIG_H2);
   _bme280_calib.dig_H3 = read8(BME280_REGISTER_DIG_H3);
-  _bme280_calib.dig_H4 = (read8(BME280_REGISTER_DIG_H4) << 4) |
+  _bme280_calib.dig_H4 = ((int8_t)read8(BME280_REGISTER_DIG_H4) << 4) |
                          (read8(BME280_REGISTER_DIG_H4 + 1) & 0xF);
-  _bme280_calib.dig_H5 = (read8(BME280_REGISTER_DIG_H5 + 1) << 4) |
+  _bme280_calib.dig_H5 = ((int8_t)read8(BME280_REGISTER_DIG_H5 + 1) << 4) |
                          (read8(BME280_REGISTER_DIG_H5) >> 4);
   _bme280_calib.dig_H6 = (int8_t)read8(BME280_REGISTER_DIG_H6);
 }
@@ -569,4 +600,162 @@ float Adafruit_BME280::seaLevelForAltitude(float altitude, float atmospheric) {
  */
 uint32_t Adafruit_BME280::sensorID(void) { return _sensorID; }
 
+// --> change in esp8266-mqtt
 uint8_t Adafruit_BME280::sensorADDR(void) { return _i2caddr; }
+// <-- change in esp8266-mqtt
+
+/*!
+    @brief  Gets an Adafruit Unified Sensor object for the temp sensor component
+    @return Adafruit_Sensor pointer to temperature sensor
+ */
+Adafruit_Sensor *Adafruit_BME280::getTemperatureSensor(void) {
+  if (!temp_sensor) {
+    temp_sensor = new Adafruit_BME280_Temp(this);
+  }
+
+  return temp_sensor;
+}
+
+/*!
+    @brief  Gets an Adafruit Unified Sensor object for the pressure sensor
+   component
+    @return Adafruit_Sensor pointer to pressure sensor
+ */
+Adafruit_Sensor *Adafruit_BME280::getPressureSensor(void) {
+  if (!pressure_sensor) {
+    pressure_sensor = new Adafruit_BME280_Pressure(this);
+  }
+  return pressure_sensor;
+}
+
+/*!
+    @brief  Gets an Adafruit Unified Sensor object for the humidity sensor
+   component
+    @return Adafruit_Sensor pointer to humidity sensor
+ */
+Adafruit_Sensor *Adafruit_BME280::getHumiditySensor(void) {
+  if (!humidity_sensor) {
+    humidity_sensor = new Adafruit_BME280_Humidity(this);
+  }
+  return humidity_sensor;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Gets the sensor_t data for the BME280's temperature sensor
+*/
+/**************************************************************************/
+void Adafruit_BME280_Temp::getSensor(sensor_t *sensor) {
+  /* Clear the sensor_t object */
+  memset(sensor, 0, sizeof(sensor_t));
+
+  /* Insert the sensor name in the fixed length char array */
+  strncpy(sensor->name, "BME280", sizeof(sensor->name) - 1);
+  sensor->name[sizeof(sensor->name) - 1] = 0;
+  sensor->version = 1;
+  sensor->sensor_id = _sensorID;
+  sensor->type = SENSOR_TYPE_AMBIENT_TEMPERATURE;
+  sensor->min_delay = 0;
+  sensor->min_value = -40.0; /* Temperature range -40 ~ +85 C  */
+  sensor->max_value = +85.0;
+  sensor->resolution = 0.01; /*  0.01 C */
+}
+
+/**************************************************************************/
+/*!
+    @brief  Gets the temperature as a standard sensor event
+    @param  event Sensor event object that will be populated
+    @returns True
+*/
+/**************************************************************************/
+bool Adafruit_BME280_Temp::getEvent(sensors_event_t *event) {
+  /* Clear the event */
+  memset(event, 0, sizeof(sensors_event_t));
+
+  event->version = sizeof(sensors_event_t);
+  event->sensor_id = _sensorID;
+  event->type = SENSOR_TYPE_AMBIENT_TEMPERATURE;
+  event->timestamp = millis();
+  event->temperature = _theBME280->readTemperature();
+  return true;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Gets the sensor_t data for the BME280's pressure sensor
+*/
+/**************************************************************************/
+void Adafruit_BME280_Pressure::getSensor(sensor_t *sensor) {
+  /* Clear the sensor_t object */
+  memset(sensor, 0, sizeof(sensor_t));
+
+  /* Insert the sensor name in the fixed length char array */
+  strncpy(sensor->name, "BME280", sizeof(sensor->name) - 1);
+  sensor->name[sizeof(sensor->name) - 1] = 0;
+  sensor->version = 1;
+  sensor->sensor_id = _sensorID;
+  sensor->type = SENSOR_TYPE_PRESSURE;
+  sensor->min_delay = 0;
+  sensor->min_value = 300.0; /* 300 ~ 1100 hPa  */
+  sensor->max_value = 1100.0;
+  sensor->resolution = 0.012; /* 0.12 hPa relative */
+}
+
+/**************************************************************************/
+/*!
+    @brief  Gets the pressure as a standard sensor event
+    @param  event Sensor event object that will be populated
+    @returns True
+*/
+/**************************************************************************/
+bool Adafruit_BME280_Pressure::getEvent(sensors_event_t *event) {
+  /* Clear the event */
+  memset(event, 0, sizeof(sensors_event_t));
+
+  event->version = sizeof(sensors_event_t);
+  event->sensor_id = _sensorID;
+  event->type = SENSOR_TYPE_PRESSURE;
+  event->timestamp = millis();
+  event->pressure = _theBME280->readPressure() / 100; // convert Pa to hPa
+  return true;
+}
+
+/**************************************************************************/
+/*!
+    @brief  Gets the sensor_t data for the BME280's humidity sensor
+*/
+/**************************************************************************/
+void Adafruit_BME280_Humidity::getSensor(sensor_t *sensor) {
+  /* Clear the sensor_t object */
+  memset(sensor, 0, sizeof(sensor_t));
+
+  /* Insert the sensor name in the fixed length char array */
+  strncpy(sensor->name, "BME280", sizeof(sensor->name) - 1);
+  sensor->name[sizeof(sensor->name) - 1] = 0;
+  sensor->version = 1;
+  sensor->sensor_id = _sensorID;
+  sensor->type = SENSOR_TYPE_RELATIVE_HUMIDITY;
+  sensor->min_delay = 0;
+  sensor->min_value = 0;
+  sensor->max_value = 100; /* 0 - 100 %  */
+  sensor->resolution = 3;  /* 3% accuracy */
+}
+
+/**************************************************************************/
+/*!
+    @brief  Gets the humidity as a standard sensor event
+    @param  event Sensor event object that will be populated
+    @returns True
+*/
+/**************************************************************************/
+bool Adafruit_BME280_Humidity::getEvent(sensors_event_t *event) {
+  /* Clear the event */
+  memset(event, 0, sizeof(sensors_event_t));
+
+  event->version = sizeof(sensors_event_t);
+  event->sensor_id = _sensorID;
+  event->type = SENSOR_TYPE_RELATIVE_HUMIDITY;
+  event->timestamp = millis();
+  event->relative_humidity = _theBME280->readHumidity();
+  return true;
+}

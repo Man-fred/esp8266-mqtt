@@ -1,7 +1,7 @@
 /* 
  *  V02-00-08: wie -07, aber Debuglevel 5 und mqtt feste IP
  */
-char mVersionNr[] = "V02-00-10.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-11.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
@@ -946,8 +946,9 @@ void i2cScan(boolean mqtt = false) {
   int nDevices;
   char addr[3] = "00";
   char msg[37];
-  
+  /*
   if (!mqtt) DEBUG1_PRINTLN("Reset...");
+  
   twi_stop();
   twi_releaseBus();
 
@@ -1008,7 +1009,7 @@ void i2cScan(boolean mqtt = false) {
   Wire.begin();
   return;
   //return 0; // all ok
-
+  */
   if (!mqtt) DEBUG1_PRINTLN("Scanning...");
   nDevices = 0;
   int _data;
