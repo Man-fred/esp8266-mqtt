@@ -8,6 +8,7 @@ char mVersionNr[] = "V02-00-11.esp8266-mqtt.ino.";
   #define DBG_OUTPUT_PORT Serial
 #endif
 #define DEBUG 4
+#include "arduino-crypto.h"
 /*
    Wire - I2C Scanner
 
@@ -247,6 +248,7 @@ byte packetBuffer[ NTP_PACKET_SIZE]; //buffer to hold incoming and outgoing pack
 
 PubSubClient client(espClient);
 boolean wifiStation = false;
+boolean wifiAP = false;
 boolean mqttConnected = false;
 
 Adafruit_BME280 bmp;
@@ -395,11 +397,13 @@ char* tochararray(char* cvalue, String value1, String value2){
   return cvalue;
 }
 
+#define MAX_UNSIGNED_LONG 4294967295
 class MyTimer {
     // Class Member Variables
     // These are initialized at startup
     int aPeriod;
     boolean aActive;
+    boolean aSingle;
     void (*aCallback) ();
     unsigned long previousMillis;   // will store last callback-time
     unsigned long currentMillis;
@@ -409,33 +413,55 @@ class MyTimer {
   public:
     // MyTimer();
     
-    void begin(int period, void(*func)(), boolean activated = true)
+    void begin(int period, void(*func)(), boolean activated = true, boolean single = false)
     {
-      aActive = activated;
       aPeriod = period;
       aCallback = func;
-      // max. unsigned int to start the timer immediately
-      previousMillis = 4294967295; 
+      aSingle = single;
+      activate(activated);
     }
 
-    void activate() {
-      aActive = true;
+    void activate(boolean is_active=true) {
+      if ((aActive = is_active)){
+        if (aSingle){
+          previousMillis = millis();
+        }else{
+          // max. unsigned int to start the timer immediately
+          previousMillis = MAX_UNSIGNED_LONG; 
+        }
+      }
     }
 
-    void deactivate() {
-      aActive = false;
+    boolean deactivate() {
+      if (aActive){
+        aActive = false;
+        return true;
+      }
+      return false;
     }
 
+    void run_now(){
+      if(aSingle)
+        deactivate();
+      previousMillis = currentMillis;   // Remember the time
+      yield();
+      aCallback();
+    }
+        
     void update() {
       if (aActive) {
         currentMillis = millis();
         // check to see if it's time to start callback
         // Ueberlauf abfangen
-        if ( (currentMillis < previousMillis) || (currentMillis - previousMillis >= aPeriod) )
-        {
-          previousMillis = currentMillis;   // Remember the time
-          yield();
-          aCallback();
+        if ( currentMillis - previousMillis >= aPeriod){
+          run_now();
+        }
+        else if (currentMillis < previousMillis)
+        { // overflow
+          unsigned long rest = MAX_UNSIGNED_LONG - previousMillis;
+          if (currentMillis + rest >= aPeriod){
+            run_now();
+          }
         }
       }
     }
@@ -444,9 +470,10 @@ class MyTimer {
 MyTimer timerMqtt; // mqtt delay
 MyTimer timerSensors; // collect 1wire/i2c sensors delay
 MyTimer timerKeypadloop; // collect i2c Keypad delay
+MyTimer timerKeypadreject; // reject, if keypad not used for more than 2 sec
 MyTimer timerReconnect; // reconnect wifi delay
 MyTimer timerNtp; // ntp-loop 
-MyTimer timerRestartDelay; // restart delay in websession
+MyTimer timerRestartDelay; // restart delay in websession and in station mode
 MyTimer timerAlarmloop; // alarm sensors delay
 MyTimer timerAlarmstate; // blink LED for local alarm
 
@@ -821,68 +848,26 @@ void setPwm(byte nr, byte set) {
   if (para.pin[nr] == PIN_PWM) {
     switch (set) {
       case 0 :
-#       ifndef ESP32
-          noTone(Pin[nr]);
-#       else
-          ledcWrite(0, 0);
-#       endif
-        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        keyclick(true, 0, 0);
         break;
       // Dauerton bis set == 0
       case 1 : 
-        digitalWrite(para.pin[nr], para.GpioOn[nr]);
-#       ifndef ESP32
-          tone(Pin[nr],420); // deutsche Einheitssirene vom Typ E 57
-#       else
-          ledcWrite(0, 128);
-#       endif
+        keyclick(true, 420, -1);
         break;
+      
       // Bestätigung unscharf
       case 2 : 
-        digitalWrite(para.pin[nr], para.GpioOn[nr]);
-#       ifndef ESP32
-          tone(Pin[nr],840); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          noTone(Pin[nr]);
-#       else
-          ledcWrite(0, 128);
-#       endif
-        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        keyclick(true, 1260, 1000);
         break;
+      
       // Bestätigung scharf
       case 3 : 
-        digitalWrite(para.pin[nr], para.GpioOn[nr]);
-        DEBUG_PRINTLN("in PWM "+String(nr)+" 3");
-#       ifndef ESP32
-          tone(Pin[nr],880); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          /*
-          tone(Pin[nr],1047); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          tone(Pin[nr],1397); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          tone(Pin[nr],1760); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          tone(Pin[nr],2092); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          */
-          noTone(Pin[nr]);
-#       else
-          ledcWrite(0, 128);
-#       endif
-        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        keyclick(true, 840, 1000);
         break;
+
       // Bestätigung schaerfen
       case 4 : 
-        digitalWrite(para.pin[nr], para.GpioOn[nr]);
-#       ifndef ESP32
-          tone(Pin[nr],2092); // deutsche Einheitssirene vom Typ E 57
-          delay(100);
-          noTone(Pin[nr]);
-#       else
-          ledcWrite(0, 128);
-#       endif
-        digitalWrite(para.pin[nr], !para.GpioOn[nr]);
+        keyclick(true, 220, 500);
         break;
     }
   }
@@ -1083,6 +1068,7 @@ void setConfig(byte nr, char receivedChar) {
       timerMqtt.deactivate();
       timerSensors.deactivate();
       timerKeypadloop.deactivate();
+      boolean timerKeypadreject_active = timerKeypadreject.deactivate();
       timerReconnect.deactivate();
       timerNtp.deactivate();
       timerAlarmloop.deactivate();
@@ -1113,6 +1099,7 @@ void setConfig(byte nr, char receivedChar) {
       timerMqtt.activate();
       timerSensors.activate();
       timerKeypadloop.activate();
+      timerKeypadreject.activate(timerKeypadreject_active);
       timerReconnect.activate();
       timerNtp.activate();
       timerAlarmloop.activate();
@@ -1236,12 +1223,55 @@ byte serialPos = 0;
 
 
 void serialInSet(char in){
+  timerKeypadreject.activate();
   if (serialPos < serialPosMax){
     serialIn[serialPos++] = in;
     serialIn[serialPos] = 0;
   } else {
     serialIn[serialPos-1] = serialPosEnd;
   }
+}
+
+static const String base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+String base64_encode(unsigned char const* bytes_to_encode, unsigned int in_len) {
+  String ret;
+  int i = 0;
+  int j = 0;
+  unsigned char char_array_3[3];
+  unsigned char char_array_4[4];
+  ret.reserve(60);
+  while (in_len--) {
+    char_array_3[i++] = *(bytes_to_encode++);
+    if (i == 3) {
+      char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+      char_array_4[3] = char_array_3[2] & 0x3f;
+
+      for(i = 0; (i <4) ; i++)
+        ret += base64_chars[char_array_4[i]];
+      i = 0;
+    }
+  }
+
+  if (i)
+  {
+    for(j = i; j < 3; j++)
+      char_array_3[j] = '\0';
+
+    char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+    char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+    char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+    char_array_4[3] = char_array_3[2] & 0x3f;
+
+    for (j = 0; (j < i + 1); j++)
+      ret += base64_chars[char_array_4[j]];
+    /*missing in PERL SHA256_base64()
+    while((i++ < 3))
+      ret += '=';
+    */
+  }
+  return ret;
 }
 
 void readInput() {
@@ -1253,19 +1283,34 @@ void readInput() {
     if (serialIn[serialPos-2] == serialKeypadEnd){
       serialIn[serialPos-2] = '\0';
       serialPos = 0;
-      DEBUG3_PRINT("Serial out: ");
-      DEBUG3_PRINTLN(serialIn);
+      timerKeypadreject.deactivate();
+      //DEBUG3_PRINT("Serial out: ");
+      //DEBUG3_PRINTLN(serialIn);
+      SHA256 crypto;
+      byte sha256hash[SHA256_SIZE];
+      crypto.doUpdate(serialIn);//, serialPos-3);
+      crypto.doFinal(sha256hash);
+
+      /* hash now contains our 32 byte hash */
+      for (byte i=0; i < SHA256_SIZE; i++)
+      {
+          if (sha256hash[i]<0x10) { Serial.print('0'); }
+          //Serial.print(sha256hash[i], HEX);
+      }
+      //Serial.println("");
       int qos = 11;
       boolean erg = false;
-      if (!erg && (qos-- > 0) ){
+      while (!erg && (qos-- > 0) ){
         // PIN in spezielles Topic einfügen. Dieses Topic sollte nur FHEM lesen können
-        erg = client.publish(para.mKeypad, serialIn, false);
+        erg = client.publish(para.mKeypad, base64_encode(sha256hash, SHA256_SIZE).c_str(), false);
         DEBUG_PRINT(erg);
-        DEBUG_PRINTLN(serialIn);
       }
+      //DEBUG_PRINT(" ");
+      //DEBUG_PRINTLN(base64_encode(sha256hash, SHA256_SIZE));
     }
     {
       serialPos = 0;
+      timerKeypadreject.deactivate();
       char request = serialIn[0];
       byte nr= serialIn[1] - '0';
       char payload= serialIn[2];
@@ -1443,6 +1488,34 @@ void setup1wire(boolean rescan){
     DEBUG1_PRINTLN("no 1wire");
 }
 
+// default tone() / noTone() erhitzt meine passiven Buzzer, 
+// unbedingt nach Nutzung auf !pwmPinOn.
+// default 0, benötigt 1 =>  pwmPinOn auf 0 einstellen
+/* ESP32 hat andere Bibliotheken
+#       ifdef ESP32
+          ledcWrite(0, 128);
+#       endif
+*/
+
+void keyclick(boolean clicking, int freq, int period){
+  if (period != 0){
+    digitalWrite(ledPin, ledPinOn);
+    if (clicking && pwmPin >= 0){
+      digitalWrite(pwmPin, pwmPinOn);
+      tone(pwmPin, freq);
+    }
+    if (period > 0)
+      delay(period);
+  }
+  if (period >= 0){
+    if (clicking && pwmPin >= 0){
+      noTone(pwmPin);
+      digitalWrite(pwmPin, !pwmPinOn);
+    }
+    digitalWrite(ledPin, !ledPinOn);
+  }
+}
+
 #define keymapRows 4
 #define keymapCols 4
 #define keymapClick true
@@ -1461,28 +1534,17 @@ void keypadloop(){
   uint8_t keymapX = 0;
   if (pcf8574Active){
     test = pcf8574.read8();
-    // wird so nie erreicht, i2c hängt
-    /*if (test == 0xFF){
-      DEBUG_PRINT("Wire ");
-      DEBUG_PRINT(Wire.status());
-      Wire.begin();
-      DEBUG_PRINT("Keypad pcf8574 ");
-      pcf8574.begin();
-      pcf8574.write8(0x0F);
-      test = pcf8574.read8();
-      DEBUG_PRINTLN(pcf8574.lastError());
-    }*/
     //if (test != 0x0F){
     if (test != 0xF0){
-      DEBUG_PRINT("keypad1 ");
-      DEBUG_PRINTLN(test, BIN);
+      //DEBUG_PRINT("keypad1 ");
+      //DEBUG_PRINTLN(test, BIN);
       for (i = 0; i < keymapCols; i++){
         pcf8574.write8(~(0x08 >> i)); // links nach rechts
         //pcf8574.write8(0xF0 | (0x08 >> i)); // links nach rechts
         delay(3);
         test = ~(pcf8574.read8());
-        DEBUG_PRINT("keypad2 ");
-        DEBUG_PRINTLN(test, BIN);
+        //DEBUG_PRINT("keypad2 ");
+        //DEBUG_PRINTLN(test, BIN);
         if (keymapPause){
           pcf8574Last[i] = 0;
           keymapPause = false;
@@ -1493,30 +1555,13 @@ void keypadloop(){
             for (j = 0; j < keymapRows; j++){
               keymapX = test & (0x80 >> j);
               if (keymapX){
-                digitalWrite(ledPin, ledPinOn);
-                if (keymapClick && pwmPin >= 0){
-                  // default tone() / noTone() erhitzt meine passiven Buzzer, 
-                  // unbedingt nach Nutzung auf !pwmPinOn.
-                  // default 0, benötigt 1 =>  pwmPinOn auf 0 einstellen
-                  digitalWrite(pwmPin, pwmPinOn);
-                  tone(pwmPin,220);
-                }
-                delay(100);
-                if (keymapClick && pwmPin >= 0){
-                  noTone(pwmPin);
-                  digitalWrite(pwmPin, !pwmPinOn);
-                }
-                digitalWrite(ledPin, !ledPinOn);
+                keyclick(keymapClick, 220, 100);
                 serialInSet(keymap[j][i]);
                 if (keymap[j][i] == serialKeypadEnd){
                   serialInSet(0x0A);
                 }
-                DEBUG2_PRINT("keypad ");
-                DEBUG3_PRINT(i);
-                DEBUG3_PRINT(" ");
-                DEBUG3_PRINT(pcf8574Last[i], BIN);
-                DEBUG3_PRINT(" ");
-                DEBUG2_PRINTLN(keymap[j][i]);
+                //DEBUG2_PRINT("keypad ");
+                //DEBUG2_PRINTLN(keymap[j][i]);
               }
             }
           }
@@ -1527,6 +1572,11 @@ void keypadloop(){
       keymapPause = true;
     }
   }
+}
+
+void keypadreject(){
+  serialPos = 0;
+  keyclick(keymapClick, 220, 100);
 }
 
 void setup(){
@@ -1551,6 +1601,7 @@ void setup(){
   timerSensors.begin(para.timerMsec[1], getData);
   DEBUG1_PRINTLN("timerSensors");
   timerKeypadloop.begin(100, keypadloop);
+  timerKeypadreject.begin(2000, keypadreject, false, true);
 #ifdef BLE
   setupBLE();
 #endif
@@ -1585,6 +1636,8 @@ void loop(){
   timerSensors.update();
   yield();
   timerKeypadloop.update();
+  yield();
+  timerKeypadreject.update();
   yield();
   timerRestartDelay.update();
   yield();

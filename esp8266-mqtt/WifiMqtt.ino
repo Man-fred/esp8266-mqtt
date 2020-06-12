@@ -1,36 +1,41 @@
 void wifiSetup(boolean station) {
-  WiFi.persistent(false);
-  WiFi.setAutoReconnect(false);
-  WiFi.mode(WIFI_OFF);
-
-  if (station){
-    wifiStaSetup();
-  } else {
-    wifiAPSetup();
+  if (!wifiAP){
+    WiFi.persistent(false);
+    WiFi.setAutoReconnect(false);
+    WiFi.mode(WIFI_OFF);
+  
+    if (station){
+      wifiStaSetup();
+    } else {
+      wifiAPSetup();
+    }
   }
 }
 void wifiStaSetup() {
-  if (WiFi.status() != WL_CONNECTED) {
+  if (!wifiAP && WiFi.status() != WL_CONNECTED) {
     WiFi.mode(WIFI_STA);
 #ifndef ESP32
     WiFi.setSleepMode(WIFI_NONE_SLEEP);//(WIFI_LIGHT_SLEEP);
     WiFi.setPhyMode(WIFI_PHY_MODE_11N);
 #endif
-    WiFi.disconnect();
+    ////////////////////////////// ??????????????? WiFi.disconnect();
     wifiStation = false;
     int i = 0;
     DEBUG1_PRINT("WiFi.status() ");
-    DEBUG1_PRINT(WiFi.status());
+    DEBUG1_PRINTLN(WiFi.status());
+    DEBUG1_PRINT("WiFi.begin() ");
+    DEBUG1_PRINT(para.ssid);
+    DEBUG1_PRINTLN(para.password);
     WiFi.begin(para.ssid, para.password);
     // 60 Sekunden auf WLan warten
-    while (WiFi.status() != WL_CONNECTED && i++ < 100) {
+    while (WiFi.status() != WL_CONNECTED && i++ < 20) {
       delay(600);
       DEBUG1_PRINT(".");
     }
-    if (i >= 100){
+    if (i >= 20){
       // Erreichbar über AP 192.168.4.1 für 5 Min., anschließend Neustart im bekannten WLAN
       wifiAPSetup();
-      timerRestartDelay.begin(300000, restartDelay);
+      timerRestartDelay.begin(300000, restartDelay, true, true);
     } else {
       DEBUG1_PRINT(", IP: ");
       DEBUG1_PRINT(WiFi.localIP());
@@ -51,6 +56,7 @@ void wifiStaSetup() {
 void wifiAPSetup()
 {
   wifiStation = false;
+  wifiAP = true;
   WiFi.disconnect();
   WiFi.mode(WIFI_AP);
   DEBUG1_PRINT("WiFi AP ...");
@@ -84,13 +90,15 @@ void onGotIP(const WiFiEventStationModeGotIP& event){
 };
 
 void onDisconnect(const WiFiEventStationModeDisconnected& event){
-  mqttSet("connect", tochararray(cstr, "disconnected ",event.reason), false);
-  if (WiFi.status() == WL_CONNECTED) {
-    // See https://github.com/esp8266/Arduino/issues/5912
-    WiFi.disconnect();
+  if (!wifiAP){
+    mqttSet("connect", tochararray(cstr, "disconnected ",event.reason), false);
+    if (WiFi.status() == WL_CONNECTED) {
+      // See https://github.com/esp8266/Arduino/issues/5912
+      ///////////////////////////// ???????????????????? WiFi.disconnect();
+    }
+    wifiStation = false;
+    Serial.println("Station disconnected");
   }
-  wifiStation = false;
-  Serial.println("Station disconnected");
 };
 #endif
 
@@ -100,8 +108,10 @@ void mqttSetup(){
   client.setCallback(callback);
 }
 void mqttLoop(){
-  if (client.connected()) {
-    client.loop();
+  if (!wifiAP){
+    if (client.connected()) {
+      client.loop();
+    }
   }
 }
 /* MQTT connect-errors
@@ -135,9 +145,7 @@ void mqttFailed(){
 char* macToEsp(const unsigned char* mac) {
   char buf[10];
   snprintf(buf, sizeof(buf), "ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
-  
-  //String erg = String(buf);
-  //erg.toUpperCase();
+  Serial.printf("ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
   return buf;
 }
 String macToString(const unsigned char* mac) {
@@ -148,7 +156,7 @@ String macToString(const unsigned char* mac) {
 }
 void mqttReconnect() {
   // Loop until we're reconnected
-  if (!client.connected()) {
+  if (!wifiAP && !client.connected()) {
     // MQTT disconnected
     mqttFailed();
     if (!wifiStation) {

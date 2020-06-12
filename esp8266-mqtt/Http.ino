@@ -283,7 +283,7 @@ void httpHome() {
   // Check if there are any GET parameters
   if (http.hasArg("restart")) {
     // muss in timer, sonst http-Timeout und endlos-Reset
-    timerRestartDelay.begin(5000, restartDelay);
+    timerRestartDelay.begin(5000, restartDelay, true, true);
     if(!handleFileRead("/restart.htm")) http404();
   } else {
     if(!handleFileRead("/home.htm")) http404();
