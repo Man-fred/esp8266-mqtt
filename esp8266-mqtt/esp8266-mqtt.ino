@@ -1,13 +1,15 @@
 /* 
  *  V02-00-08: wie -07, aber Debuglevel 5 und mqtt feste IP
  */
-char mVersionNr[] = "V02-00-11.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-12.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
 #define DEBUG 4
+#define USE_NEOPIXEL
+
 #include "arduino-crypto.h"
 /*
    Wire - I2C Scanner
@@ -139,6 +141,27 @@ byte ledPin = Pin[7]; //BUILTIN_LED;
 byte ledPinOn = 0;
 byte pwmPin = 0;
 byte pwmPinOn = 0;
+
+#ifdef USE_NEOPIXEL
+  byte pixelPin = 0xFF;       // Digital IO pin connected to the NeoPixels, set later
+  byte pixelChanged = 0;
+  #define PIXEL_COUNT 8  // Number of NeoPixels
+  #include <Adafruit_NeoPixel.h>
+  // Declare our NeoPixel strip object:
+  Adafruit_NeoPixel strip(PIXEL_COUNT, -1, NEO_GRB + NEO_KHZ800);
+  // Argument 1 = Number of pixels in NeoPixel strip
+  // Argument 2 = Arduino pin number (most are valid)
+  // Argument 3 = Pixel type flags, add together as needed:
+  //   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+  //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+  //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+  //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+  //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+#endif
+#define PIXEL_ON    1
+#define PIXEL_ALARM 2
+#define PIXEL_SET   3
+#define PIXEL_NA    4
 
 // enables storing webpages in EEPROM, not in sketch
 #include <FS.h>
@@ -294,15 +317,17 @@ int reedActor = 0;      // 0: no action, 1: internal, 2: light, 4: external sire
 byte reedAlarmtoggle = 0;
 
 #define PIN_NOTHING 0
-#define PIN_SENSOR 1
-#define PIN_ACTOR 2
-#define PIN_SWITCH 3
-#define PIN_PWM 4
-#define PIN_ALARM 5
-#define PIN_SDA 6
-#define PIN_SCL 7 
-#define PIN_1WIRE 8
-#define PIN_LED 9
+#define PIN_SENSOR  1
+#define PIN_ACTOR   2
+#define PIN_SWITCH  3
+#define PIN_PWM     4
+#define PIN_ALARM   5
+#define PIN_SDA     6
+#define PIN_SCL     7 
+#define PIN_1WIRE   8
+#define PIN_LED     9
+#define PIN_PIXEL  10
+
 //boolean SOn[] = {false, false, false, false};
 
 int analogWert = 0;
@@ -1062,6 +1087,7 @@ void setConfig(byte nr, char receivedChar) {
     if (receivedChar == '4') {
       restartDelay();
     }
+    //OTA Update
     if (receivedChar == '5') {
       mqttSet("set/C1", "6");
       
@@ -1186,6 +1212,8 @@ void set(char request, byte nr, char payload){
     setArmed(payload == '1');
   } else if (request == 'P' && nr >= 0 && nr < PIN_MAX) {
     setPwm(nr, payload - '0');
+  } else if (request == 'M' && nr >= 0 && nr < PIXEL_COUNT) {
+    pixelSet(nr, payload - '0');
   }
 }
   
@@ -1411,6 +1439,11 @@ void setupPinmode(){
 #                       endif
                         mqttSet(PinName[i], tochararray(cstr, "PWM ",tochararray(cpart, pinState[i])));
                         break;
+      #ifdef USE_NEOPIXEL
+      case PIN_PIXEL :  pixelPin = Pin[i];
+                        mqttSet(PinName[i], tochararray(cstr, "Pixel ",tochararray(cpart, pinState[i])));
+                        break;
+      #endif
       default :         mqttSet(PinName[i], tochararray(cstr, "UNDEF ",tochararray(cpart, para.pin[i])));
                         break;
     }
@@ -1496,6 +1529,42 @@ void setup1wire(boolean rescan){
           ledcWrite(0, 128);
 #       endif
 */
+
+#ifdef USE_NEOPIXEL
+void setupPixel(){
+  if (pixelPin < 0xFF){
+    strip.setPin(pixelPin);
+    strip.begin(); // Initialize NeoPixel strip object (REQUIRED)
+    strip.show();  // Initialize all pixels to 'off'
+  }
+}
+
+void pixelLoop(){
+  if (pixelPin < 0xFF && pixelChanged){
+    strip.show();                          //  Update strip to match
+    pixelChanged = 0;
+  }
+}
+#endif
+
+void pixelSet(uint16_t n, byte type){
+  #ifdef USE_NEOPIXEL
+    uint8_t r=0, g=0, b=0;
+    switch (type) {
+      case PIXEL_ON    :  g=0x7F;
+                          break;
+      case PIXEL_ALARM :  r=0xFF;
+                          break;
+      case PIXEL_SET   :  b=0x7F;
+                          break;
+      case PIXEL_NA    :  r=0x3F;
+                          g=0x3F;
+                          break;
+    }
+    strip.setPixelColor(n,r,g,b);         //  Set pixel's color (in RAM)
+    pixelChanged = 1;
+  #endif
+}
 
 void keyclick(boolean clicking, int freq, int period){
   if (period != 0){
@@ -1596,15 +1665,18 @@ void setup(){
   DEBUG1_PRINTLN("setupI2c");
   setup1wire(false);
   DEBUG1_PRINTLN("setup1wire");
+  #ifdef USE_NEOPIXEL
+    setupPixel();
+  #endif
   timerAlarmloop.begin(1000, Alarmloop);
   DEBUG1_PRINTLN("timerAlarmloop");
   timerSensors.begin(para.timerMsec[1], getData);
   DEBUG1_PRINTLN("timerSensors");
   timerKeypadloop.begin(100, keypadloop);
   timerKeypadreject.begin(2000, keypadreject, false, true);
-#ifdef BLE
-  setupBLE();
-#endif
+  #ifdef BLE
+    setupBLE();
+  #endif
 #ifndef ESP32
   stationDisconnectedHandler = WiFi.onStationModeDisconnected(onDisconnect);
   stationGotIpHandler = WiFi.onStationModeGotIP(onGotIP);
@@ -1651,10 +1723,14 @@ void loop(){
   yield();
   mqttLoop();
   yield();
+  #ifdef USE_NEOPIXEL
+    pixelLoop();
+    yield();
+  #endif
   http.handleClient();
   yield();
   readInput();
-#ifdef BLE
-  bleLoop();
-#endif
+  #ifdef BLE
+    bleLoop();
+  #endif
 }
