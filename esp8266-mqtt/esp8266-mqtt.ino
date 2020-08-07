@@ -1,13 +1,13 @@
 /* 
  *  V02-00-08: wie -07, aber Debuglevel 5 und mqtt feste IP
  */
-char mVersionNr[] = "V02-00-12.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-14.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
   #define DBG_OUTPUT_PORT Serial
 #endif
-#define DEBUG 4
+#define DEBUG 1
 #define USE_NEOPIXEL
 
 #include "arduino-crypto.h"
@@ -132,6 +132,7 @@ char mVersionNr[] = "V02-00-12.esp8266-mqtt.ino.";
   char *PinName[] = {"D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8"};
   String mVersionBoard = ARDUINO_VARIANT;
 #endif
+
 boolean bleScanActive = true;
 
 byte ONE_WIRE_BUS = Pin[4];
@@ -143,9 +144,10 @@ byte pwmPin = 0;
 byte pwmPinOn = 0;
 
 #ifdef USE_NEOPIXEL
+  #include <string>
   byte pixelPin = 0xFF;       // Digital IO pin connected to the NeoPixels, set later
   byte pixelChanged = 0;
-  #define PIXEL_COUNT 8  // Number of NeoPixels
+  #define PIXEL_COUNT 10  // Number of NeoPixels
   #include <Adafruit_NeoPixel.h>
   // Declare our NeoPixel strip object:
   Adafruit_NeoPixel strip(PIXEL_COUNT, -1, NEO_GRB + NEO_KHZ800);
@@ -1212,8 +1214,6 @@ void set(char request, byte nr, char payload){
     setArmed(payload == '1');
   } else if (request == 'P' && nr >= 0 && nr < PIN_MAX) {
     setPwm(nr, payload - '0');
-  } else if (request == 'M' && nr >= 0 && nr < PIXEL_COUNT) {
-    pixelSet(nr, payload - '0');
   }
 }
   
@@ -1233,7 +1233,9 @@ void callback(char* topic, byte* payload, unsigned int mLength) {
   //DEBUG1_PRINT(request);
   //DEBUG1_PRINTLN(nr);
   //DEBUG1_PRINTLN(ack);
-  if (slash == '/'){
+  if (request == 'M'){
+    pixelRgb(nr, payload, mLength);
+  } else if (slash == '/'){
     set(request, nr, receivedChar);
   } else if (String(topic).endsWith("/OSS")) {
     callbackOSS(payload, mLength);
@@ -1307,38 +1309,40 @@ void readInput() {
     serialInSet(Serial.read());
   }
   if (serialIn[serialPos-1] == serialPosEnd){
+    boolean erg = false;
     //keypad-Eingabe mit '#' abgeschlossen
     if (serialIn[serialPos-2] == serialKeypadEnd){
       serialIn[serialPos-2] = '\0';
-      serialPos = 0;
-      timerKeypadreject.deactivate();
-      //DEBUG3_PRINT("Serial out: ");
-      //DEBUG3_PRINTLN(serialIn);
-      SHA256 crypto;
-      byte sha256hash[SHA256_SIZE];
-      crypto.doUpdate(serialIn);//, serialPos-3);
-      crypto.doFinal(sha256hash);
-
-      /* hash now contains our 32 byte hash */
-      for (byte i=0; i < SHA256_SIZE; i++)
-      {
-          if (sha256hash[i]<0x10) { Serial.print('0'); }
-          //Serial.print(sha256hash[i], HEX);
+      serialPos = serialPos-2;
+      if (serialPos > 1) {
+        //DEBUG3_PRINT("Serial out: ");
+        //DEBUG3_PRINTLN(serialIn);
+        SHA256 crypto;
+        byte sha256hash[SHA256_SIZE];
+        crypto.doUpdate(serialIn);//, serialPos-3);
+        crypto.doFinal(sha256hash);
+  
+        /* hash now contains our 32 byte hash */
+        for (byte i=0; i < SHA256_SIZE; i++)
+        {
+            //if (sha256hash[i]<0x10) { Serial.print('0'); }
+            //Serial.print(sha256hash[i], HEX);
+        }
+        //Serial.println("");
+        int qos = 11;
+        while (!erg && (qos-- > 0) ){
+          // PIN in spezielles Topic einfügen. Dieses Topic sollte nur FHEM lesen können
+          erg = client.publish(para.mKeypad, base64_encode(sha256hash, SHA256_SIZE).c_str(), false);
+          //DEBUG_PRINT(erg);
+        }
+        //DEBUG_PRINT(" ");
+        //DEBUG_PRINTLN(base64_encode(sha256hash, SHA256_SIZE));
+      } else {
+        erg = client.publish(para.mKeypad, serialIn, false);
       }
-      //Serial.println("");
-      int qos = 11;
-      boolean erg = false;
-      while (!erg && (qos-- > 0) ){
-        // PIN in spezielles Topic einfügen. Dieses Topic sollte nur FHEM lesen können
-        erg = client.publish(para.mKeypad, base64_encode(sha256hash, SHA256_SIZE).c_str(), false);
-        DEBUG_PRINT(erg);
-      }
-      //DEBUG_PRINT(" ");
-      //DEBUG_PRINTLN(base64_encode(sha256hash, SHA256_SIZE));
+      erg = true;
     }
-    {
-      serialPos = 0;
-      timerKeypadreject.deactivate();
+    if (!erg){
       char request = serialIn[0];
       byte nr= serialIn[1] - '0';
       char payload= serialIn[2];
@@ -1382,8 +1386,12 @@ void readInput() {
         Serial.println(getIndex());
       } else if (nr >= 0 && nr < PIN_MAX && (request == 'A' || request == 'C' || request == 'D' || request == 'S' || request == 'O' || request == 'P')) { 
         set(request, nr, payload);
+      } else if (request == 'M'){
+        pixelRgb(nr, (byte*)serialIn+2, serialPos-2);
       }
     }
+    serialPos = 0;
+    timerKeypadreject.deactivate();
   }
 }
 
@@ -1545,23 +1553,44 @@ void pixelLoop(){
     pixelChanged = 0;
   }
 }
-#endif
 
-void pixelSet(uint16_t n, byte type){
-  #ifdef USE_NEOPIXEL
+void pixelSet(uint16_t nr, byte type){
     uint8_t r=0, g=0, b=0;
     switch (type) {
-      case PIXEL_ON    :  g=0x7F;
+      case PIXEL_ON    :  g=0x1F;
                           break;
-      case PIXEL_ALARM :  r=0xFF;
+      case PIXEL_ALARM :  r=0x1F;
                           break;
-      case PIXEL_SET   :  b=0x7F;
+      case PIXEL_SET   :  b=0x1F;
                           break;
-      case PIXEL_NA    :  r=0x3F;
-                          g=0x3F;
+      case PIXEL_NA    :  r=0x0F;
+                          b=0x0F;
                           break;
     }
-    strip.setPixelColor(n,r,g,b);         //  Set pixel's color (in RAM)
+    Serial.print(nr);Serial.print(" ");Serial.print(type);Serial.println("...");
+    strip.setPixelColor(nr,r,g,b);         //  Set pixel's color (in RAM)
+}
+#endif
+
+void pixelRgb(byte nr, byte* payload, unsigned int mLength){
+  #ifdef USE_NEOPIXEL
+    if (mLength == 1) {
+      pixelSet(nr, payload[0]-'0');
+    } else {
+      uint32_t c = 0;//payload[0]-'0';
+      for (byte i=0; i<6; i++) {
+          // get current character then increment
+          char rgb = payload[i]; 
+          // transform hex character to the 4bit equivalent number, using the ascii table indexes
+          if (rgb >= '0' && rgb <= '9') rgb = rgb - '0';
+          else if (rgb >= 'a' && rgb <='f') rgb = rgb - 'a' + 10;
+          else if (rgb >= 'A' && rgb <='F') rgb = rgb - 'A' + 10;    
+          // shift 4 to make space for new digit, and add the 4 bits of the new digit 
+          c = (c << 4) | (rgb & 0xF);
+      }
+      Serial.print(nr);Serial.print(" ");Serial.print(c,HEX);Serial.println("...");
+      strip.setPixelColor(nr,c);         //  Set pixel's color (in RAM)
+    }
     pixelChanged = 1;
   #endif
 }
@@ -1667,13 +1696,14 @@ void setup(){
   DEBUG1_PRINTLN("setup1wire");
   #ifdef USE_NEOPIXEL
     setupPixel();
+    //PixelSet(9, PIXEL_ALARM);
   #endif
   timerAlarmloop.begin(1000, Alarmloop);
   DEBUG1_PRINTLN("timerAlarmloop");
   timerSensors.begin(para.timerMsec[1], getData);
   DEBUG1_PRINTLN("timerSensors");
   timerKeypadloop.begin(100, keypadloop);
-  timerKeypadreject.begin(2000, keypadreject, false, true);
+  timerKeypadreject.begin(10000, keypadreject, false, true);
   #ifdef BLE
     setupBLE();
   #endif
@@ -1687,6 +1717,9 @@ void setup(){
   DEBUG1_PRINTLN("httpSetup");
 
   if (wifiStation){
+    #ifdef USE_NEOPIXEL
+       //PixelSet(9, PIXEL_SET);
+    #endif
     yield();
     mqttSetup();
     yield();
@@ -1698,6 +1731,9 @@ void setup(){
   }
   yield();
   timerAlarmstate.begin(333, setAlarmLED, false);
+  #ifdef USE_NEOPIXEL
+     //PixelSet(9, PIXEL_ON);
+  #endif
 }
 
 void loop(){
