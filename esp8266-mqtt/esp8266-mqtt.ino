@@ -1,8 +1,13 @@
 /* 
- *  V02-00-16: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel deaktiviert
+ *  V01-00 : Arduino 1.6.7
+ *  V01-01 : Arduino 1.6.10, DallasTemperature, OneWire updated
+ *  V01-04 : Arduino 1.6.10, webserver for configdate, saved in eeprom, detection of NodeMCU and WeMos D1 mini
+ *  V01-05 : Arduino 1.8.2,  
+ *  V01-06 : Arduino 1.8.9,  
  *  V02-00-08: wie -07, aber Debuglevel 5 und mqtt feste IP
+ *  V02-00-16: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel deaktiviert
  */
-char mVersionNr[] = "V02-00-16.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-17.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
@@ -11,8 +16,9 @@ char mVersionNr[] = "V02-00-16.esp8266-mqtt.ino.";
 #define DEBUG 3
 
 //#define USE_IR
-//#define USE_BH1745
 //#define USE_NEOPIXEL
+#define USE_BH1745
+#define USE_BH1750
 
 #ifdef USE_NEOPIXEL
   #define NEOPIXEL_KEYPAD 1
@@ -47,111 +53,106 @@ char mVersionNr[] = "V02-00-16.esp8266-mqtt.ino.";
 #define ARDUINO_VARIANT ARDUINO_BOARD
 #endif
 #ifdef ARDUINO_ESP8266_NODEMCU
-#include <ESP8266WiFi.h>
-// enables OTA updates
-#include <ESP8266httpUpdate.h>
-// enables webconfig
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-#define PIN_MAX 9
-const byte board = 1;
-const byte Pin[PIN_MAX] = { D7, D6, D5, D8, D4, D1, D2, D0, D3 };  // reed3 oder S3
-char* PinName[] = { (char*)"D.7", "D.6", "D.5", "D.8", "D.4", "D.1", "D.2", "D.0", "D.3" };
-String mVersionBoard = "nodemcu";
-
+  #include <ESP8266WiFi.h>
+  // enables OTA updates
+  #include <ESP8266httpUpdate.h>
+  // enables webconfig
+  #include <ESP8266WebServer.h>
+  #include <ESP8266mDNS.h>
+  #define PIN_MAX 9
+  const byte board = 1;
+  const byte Pin[PIN_MAX] = { D7, D6, D5, D8, D4, D1, D2, D0, D3 };  // reed3 oder S3
+  char* PinName[] = { (char*)"D.7", "D.6", "D.5", "D.8", "D.4", "D.1", "D.2", "D.0", "D.3" };
+  String mVersionBoard = "nodemcu";
 #elif ARDUINO_ESP8266_WEMOS_D1MINI
-#include <ESP8266WiFi.h>
-// enables OTA updates
-#include <ESP8266httpUpdate.h>
-// enables webconfig
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-#define PIN_MAX 9
-const byte board = 2;
-const byte Pin[] = { D7, D6, D5, D0, D3, D1, D2, D4, D8 };
-char* PinName[] = { (char*)"D.7", (char*)"D.6", (char*)"D.5", (char*)"D.0", (char*)"D.3", (char*)"D.1", (char*)"D.2", (char*)"D.4", (char*)"D.8" };  //(char*) vor jedem String
-char mVersionBoard[] = "d1_mini";
-
+  #include <ESP8266WiFi.h>
+  // enables OTA updates
+  #include <ESP8266httpUpdate.h>
+  // enables webconfig
+  #include <ESP8266WebServer.h>
+  #include <ESP8266mDNS.h>
+  #define PIN_MAX 9
+  const byte board = 2;
+  const byte Pin[] = { D7, D6, D5, D0, D3, D1, D2, D4, D8 };
+  char* PinName[] = { (char*)"D.7", (char*)"D.6", (char*)"D.5", (char*)"D.0", (char*)"D.3", (char*)"D.1", (char*)"D.2", (char*)"D.4", (char*)"D.8" };  //(char*) vor jedem String
+  char mVersionBoard[] = "d1_mini";
 #elif ARDUINO_NodeMCU_32S
-#define PIN_MAX 9
-#define WL_MAC_ADDR_LENGTH 8
-#include <WiFi.h>
-// enables OTA updates
-#include <HTTPUpdate.h>
-#include <HTTPClient.h>
-
-// enables webconfig
-#include <WebServer.h>
-#include <ESPmDNS.h>
-//#include <SPIFFS.h>
-#include "LittleFS.h" // LittleFS is declared
-#include <rom/rtc.h>
-
-const byte board = 3;
-const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
-String mVersionBoard = "nodemcu-32s";
-
+  #define PIN_MAX 9
+  #define WL_MAC_ADDR_LENGTH 8
+  #include <WiFi.h>
+  // enables OTA updates
+  #include <HTTPUpdate.h>
+  #include <HTTPClient.h>
+  
+  // enables webconfig
+  #include <WebServer.h>
+  #include <ESPmDNS.h>
+  //#include <SPIFFS.h>
+  #include "LittleFS.h" // LittleFS is declared
+  #include <rom/rtc.h>
+  
+  const byte board = 3;
+  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  String mVersionBoard = "nodemcu-32s";
 #elif DEVICE_ESP32_DEV
-#define PIN_MAX 9
-#define BLE
-#define WL_MAC_ADDR_LENGTH 8
-#include <WiFi.h>
-// enables OTA updates
-#include <HTTPUpdate.h>
-#include <HTTPClient.h>
-
-// enables webconfig
-#include <WebServer.h>
-#include <ESPmDNS.h>
-//#include <SPIFFS.h>
-#include "LittleFS.h" // LittleFS is declared
-#include <rom/rtc.h>
-
-const byte board = 6;
-const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
-String mVersionBoard = "esp32";
-
+  #define PIN_MAX 9
+  #define BLE
+  #define WL_MAC_ADDR_LENGTH 8
+  #include <WiFi.h>
+  // enables OTA updates
+  #include <HTTPUpdate.h>
+  #include <HTTPClient.h>
+  
+  // enables webconfig
+  #include <WebServer.h>
+  #include <ESPmDNS.h>
+  //#include <SPIFFS.h>
+  #include "LittleFS.h" // LittleFS is declared
+  #include <rom/rtc.h>
+  
+  const byte board = 6;
+  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  String mVersionBoard = "esp32";
 #elif ESP32
-#define PIN_MAX 9
-#define BLE
-#define WL_MAC_ADDR_LENGTH 8
-//# define SYSTEM_EVENT_STA_LOST_IP 8
-//# define SYSTEM_EVENT_GOT_IP6 19
-#include <WiFi.h>
-// enables OTA updates
-#include <HTTPUpdate.h>
-#include <HTTPClient.h>
-
-// enables webconfig
-#include <WebServer.h>
-#include <ESPmDNS.h>
-//#include <SPIFFS.h>
-#include "LittleFS.h" // LittleFS is declared
-#include <rom/rtc.h>
-
-const byte board = 4;
-const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
-String mVersionBoard = "esp32";
-
+  #define PIN_MAX 9
+  #define BLE
+  #define WL_MAC_ADDR_LENGTH 8
+  //# define SYSTEM_EVENT_STA_LOST_IP 8
+  //# define SYSTEM_EVENT_GOT_IP6 19
+  #include <WiFi.h>
+  // enables OTA updates
+  #include <HTTPUpdate.h>
+  #include <HTTPClient.h>
+  
+  // enables webconfig
+  #include <WebServer.h>
+  #include <ESPmDNS.h>
+  //#include <SPIFFS.h>
+  #include "LittleFS.h" // LittleFS is declared
+  #include <rom/rtc.h>
+  
+  const byte board = 4;
+  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  String mVersionBoard = "esp32";
 #else
-#define PIN_MAX 9
-#define SYSTEM_EVENT_STA_LOST_IP 8
-#define SYSTEM_EVENT_GOT_IP6 19
-#include <WiFi.h>
-// enables OTA updates
-#include <HTTPUpdate.h>
-// enables webconfig
-#include <WebServer.h>
-#include <ESPmDNS.h>
-//#include <SPIFFS.h>
-#include "LittleFS.h" // LittleFS is declared
-const byte board = 5;
-const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
-String mVersionBoard = ARDUINO_VARIANT;
+  #define PIN_MAX 9
+  #define SYSTEM_EVENT_STA_LOST_IP 8
+  #define SYSTEM_EVENT_GOT_IP6 19
+  #include <WiFi.h>
+  // enables OTA updates
+  #include <HTTPUpdate.h>
+  // enables webconfig
+  #include <WebServer.h>
+  #include <ESPmDNS.h>
+  //#include <SPIFFS.h>
+  #include "LittleFS.h" // LittleFS is declared
+  const byte board = 5;
+  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  String mVersionBoard = ARDUINO_VARIANT;
 #endif
 
 boolean bleScanActive = true;
@@ -165,21 +166,21 @@ byte pwmPin = 0;
 byte pwmPinOn = 0;
 
 #ifdef USE_NEOPIXEL
-#include <string>
-byte pixelPin = 0xFF;  // Digital IO pin connected to the NeoPixels, set later
-byte pixelChanged = 0;
-byte pixelType = USE_NEOPIXEL;
-#include <Adafruit_NeoPixel.h>
-// Declare our NeoPixel strip object:
-Adafruit_NeoPixel strip(NEOPIXEL_COUNT, -1, NEO_GRB + NEO_KHZ800);
-// Argument 1 = Number of pixels in NeoPixel strip
-// Argument 2 = Arduino pin number (most are valid)
-// Argument 3 = Pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+  #include <string>
+  byte pixelPin = 0xFF;  // Digital IO pin connected to the NeoPixels, set later
+  byte pixelChanged = 0;
+  byte pixelType = USE_NEOPIXEL;
+  #include <Adafruit_NeoPixel.h>
+  // Declare our NeoPixel strip object:
+  Adafruit_NeoPixel strip(NEOPIXEL_COUNT, -1, NEO_GRB + NEO_KHZ800);
+  // Argument 1 = Number of pixels in NeoPixel strip
+  // Argument 2 = Arduino pin number (most are valid)
+  // Argument 3 = Pixel type flags, add together as needed:
+  //   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+  //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+  //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+  //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+  //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
 #endif
 
 #define PIXEL_ON 1
@@ -188,31 +189,30 @@ Adafruit_NeoPixel strip(NEOPIXEL_COUNT, -1, NEO_GRB + NEO_KHZ800);
 #define PIXEL_NA 4
 
 #ifdef USE_IR
-#include <IRremoteESP8266.h>
-#include <IRrecv.h>
-#include <IRutils.h>
-#include <IRac.h>
-#include <IRtext.h>
-#include <IRsend.h>
-
-// An IR detector/demodulator is connected to GPIO pin 14(D5 on a NodeMCU
-// board).
-// Note: GPIO 16 won't work on the ESP8266 as it does not have interrupts.
-uint16_t kRecvPin = D4;  //14;
-IRrecv irrecv(kRecvPin);
-decode_results results;
-
-uint16_t kIrLed = D0;   //4;  // ESP8266 GPIO pin to use. Recommended: 4 (D2).
-IRsend irsend(kIrLed);  // Set the GPIO to be used to sending the message.
-
-void setup_ir(void) {
-  irrecv.enableIRIn();  // Start the receiver
-  irsend.begin();
-}
+  #include <IRremoteESP8266.h>
+  #include <IRrecv.h>
+  #include <IRutils.h>
+  #include <IRac.h>
+  #include <IRtext.h>
+  #include <IRsend.h>
+  
+  // An IR detector/demodulator is connected to GPIO pin 14(D5 on a NodeMCU
+  // board).
+  // Note: GPIO 16 won't work on the ESP8266 as it does not have interrupts.
+  uint16_t kRecvPin = D4;  //14;
+  IRrecv irrecv(kRecvPin);
+  decode_results results;
+  
+  uint16_t kIrLed = D0;   //4;  // ESP8266 GPIO pin to use. Recommended: 4 (D2).
+  IRsend irsend(kIrLed);  // Set the GPIO to be used to sending the message.
+  
+  void setup_ir(void) {
+    irrecv.enableIRIn();  // Start the receiver
+    irsend.begin();
+  }
 #endif
 
 // enables storing webpages in EEPROM, not in sketch
-//#include <FS.h>
 #include <LittleFS.h>
 // enables storing config-data in EEPROM
 #include <EEPROM.h>
@@ -224,25 +224,22 @@ void setup_ir(void) {
 #include <Wire.h>
 //#include <BMP280.h>
 #include <Adafruit_BME280.h>
-#include <BH1750FVI.h>
+#ifdef USE_BH1750
+  #include <BH1750FVI.h>
+#endif
 #include <PCF8574.h>
 
 #ifdef BLE
-#include <BLEDevice.h>
+  #include <BLEDevice.h>
 #endif
 
 // Fehler in der Implementierung, Absturz bei ESP32
 #ifndef ESP32
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <DS2450.h>
+  #include <OneWire.h>
+  #include <DallasTemperature.h>
+  #include <DS2450.h>
 #endif
-/*  V01-00 : Arduino 1.6.7
- *  V01-01 : Arduino 1.6.10, DallasTemperature, OneWire updated
- *  V01-04 : Arduino 1.6.10, webserver for configdate, saved in eeprom, detection of NodeMCU and WeMos D1 mini
- *  V01-05 : Arduino 1.8.2,  
- *  V01-06 : Arduino 1.8.9,  
- */
+
 const byte hex[17] = "0123456789ABCDEF";
 
 // Parameters for WiFi and MQTT
@@ -334,11 +331,12 @@ double bmeH = 0;
 unsigned long bmpTime;
 //#define bmpP0 1013.25
 
-
-BH1750FVI bh1750;
 boolean bh1750Active = false;
-uint16_t bh1750Lux = 0;
-unsigned long bh1750Time;
+#ifdef USE_BH1750
+  BH1750FVI bh1750;
+  uint16_t bh1750Lux = 0;
+  unsigned long bh1750Time;
+#endif
 
 PCF8574 pcf8574(0x20);
 boolean pcf8574Active = false;
@@ -692,17 +690,17 @@ void mqttSend() {
   }
 }
 
+boolean bh1745Active = false;
+uint8_t bh1745_brightness = 0xFF;
 #ifdef USE_BH1745
   #include <BH1745NUC.h>
   BH1745NUC bh1745;
-  boolean bh1745Active = false;
   uint32_t bh1745_color = 0;
   uint32_t bh1745_col2 = 0;
   uint16_t bh1745_red = 0;
   uint16_t bh1745_blue = 0;
   uint16_t bh1745_green = 0;
   uint16_t bh1745_lux = 0;
-  uint8_t bh1745_brightness = 0xFF;
 
   boolean bh1745setup(void) {
     bh1745.getAddr_BH1745NUC(BH1745NUC_DEFAULT_ADDRESS);  // 0x38, 0111000
@@ -778,7 +776,7 @@ void mqttSend() {
   #ifdef USE_NEOPIXEL
     if (pixelType == NEOPIXEL_AMBILIGHT) {
       for (byte i = 0; i < NEOPIXEL_COUNT; i++) {
-        strip.setPixelColor(0, bh1745_col2);  //  Set pixel's color (in RAM)
+      strip.setPixelColor(0, bh1745_col2);  //  Set pixel's color (in RAM)
       }
       pixelChanged = 1;
     }
@@ -802,15 +800,17 @@ void mqttSend() {
   }
 #endif
 
-void bh1750loop() {
-  bh1750Lux = bh1750.readLightLevel();
-  bh1750Time = ntpTime.delta + millis() / 1000;
-  mqttSet((char*)"lux", tochararray(cmessage, bh1750Lux));
+#ifdef USE_BH1750
+  void bh1750loop() {
+    bh1750Lux = bh1750.readLightLevel();
+    bh1750Time = ntpTime.delta + millis() / 1000;
+    mqttSet((char*)"lux", tochararray(cmessage, bh1750Lux));
 
-  DEBUG1_PRINT("Light: ");
-  DEBUG1_PRINT(bh1750Lux);
-  DEBUG1_PRINTLN(" lx");
-}
+    DEBUG1_PRINT("Light: ");
+    DEBUG1_PRINT(bh1750Lux);
+    DEBUG1_PRINTLN(" lx");
+  }
+#endif
 
 void bmp280loop() {
   bmp.takeForcedMeasurement();
@@ -1022,10 +1022,12 @@ void getData() {
     yield();
   }
 #endif
+#ifdef USE_BH1750
   if (bh1750Active) {
     bh1750loop();
     yield();
   }
+#endif
   if (ds1820Sensors > 0) {
     ds1820Loop();
     yield();
@@ -1664,21 +1666,23 @@ void setupI2c(boolean rescan) {
         DEBUG1_PRINT("BMP failed! ");
       }
     }
+  #ifdef USE_BH1750
     if (!bh1750Active) {
       bh1750Active = bh1750.begin();
       if (bh1750Active) {
-        DEBUG1_PRINTLN("Lightsensor init success!");
+      DEBUG1_PRINTLN("Lightsensor init success!");
       }
     }
-#ifdef USE_BH1745
+  #endif
+  #ifdef USE_BH1745
     if (!bh1745Active) {
       bh1745Active = bh1745setup();
       delay(30);
       if (bh1745Active) {
-        DEBUG1_PRINTLN("Colorsensor init success!");
+      DEBUG1_PRINTLN("Colorsensor init success!");
       }
     }
-#endif
+  #endif
     if (!pcf8574Active) {
       pcf8574Active = (pcf8574.begin() == 0);
       DEBUG_PRINT("Keypad pcf8574 ");

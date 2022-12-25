@@ -236,10 +236,12 @@ String getIndex(){
       json += "\",\"bmpTime\":\""+fillNtpTime(bmpTime);
     }
     json += "\",\"bh1750\":\""+String(bh1750Active);
-    if (bh1750Active) {
-      json += "\",\"bh1750Lux\":\""+String(bh1750Lux);
-      json += "\",\"bh1750Time\":\""+fillNtpTime(bh1750Time);
-    }
+    #ifdef USE_BH1750
+      if (bh1750Active) {
+        json += "\",\"bh1750Lux\":\""+String(bh1750Lux);
+        json += "\",\"bh1750Time\":\""+fillNtpTime(bh1750Time);
+      }
+    #endif
     json += "\",\"ds\":\""+String(ds1820Sensors > 0);
     if (ds1820Sensors > 0) {
       for (i = 0; i < MAX_DS_SENSORS; i++) {
