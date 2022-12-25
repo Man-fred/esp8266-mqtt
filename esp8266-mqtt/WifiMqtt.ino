@@ -42,14 +42,16 @@ void wifiStaSetup() {
       DEBUG1_PRINT(WiFi.localIP());
       DEBUG1_PRINT(", MAC: ");
       WiFi.macAddress(para.mMac);                   //get MAC address of interface
-      DEBUG1_PRINT(macToString(para.mMac));
+      char myMac[20]; 
+      macToString(para.mMac, myMac, sizeof(myMac));
+      DEBUG1_PRINT(myMac);
       DEBUG1_PRINT(", Client: ");
       DEBUG1_PRINT(para.mClient);
       DEBUG1_PRINTLN(" ok");
       // besser nicht automatisch WiFi.setAutoReconnect(true);
       wifiStation = true;
-      mqttSet("IP", tochararray(cstr, WiFi.localIP().toString()));
-      mqttSet("RSSI", tochararray(cstr, WiFi.RSSI()));
+      mqttSet((char*)"IP", tochararray(cstr, WiFi.localIP().toString()));
+      mqttSet((char*)"RSSI", tochararray(cstr, WiFi.RSSI()));
     }
   }
 }
@@ -70,7 +72,8 @@ void wifiAPSetup()
     AP_NameChar[i] = AP_NameString.charAt(i);
   */
   // "ESPxxxxxx"
-  char* AP_NameChar = macToEsp(mac);
+  char AP_NameChar[10]; 
+  macToEsp(mac, AP_NameChar, 10);
   WiFi.softAP(AP_NameChar, "123456789");
   DEBUG_PRINT(AP_NameChar);
   DEBUG_PRINTLN(", pass 123456789 ok"); 
@@ -83,7 +86,7 @@ void wifiAPSetup()
    IPAddress mask;
    IPAddress gw; */
 void onGotIP(const WiFiEventStationModeGotIP& event){
-  mqttSet("connect2", tochararray(cstr, event.ip.toString()), false);
+  mqttSet((char*)"connect2", tochararray(cstr, event.ip.toString()), false);
   wifiStation = true;
 
   /*Serial.print("Station connected, IP: ");
@@ -92,7 +95,7 @@ void onGotIP(const WiFiEventStationModeGotIP& event){
 
 void onDisconnect(const WiFiEventStationModeDisconnected& event){
   if (!wifiAP){
-    mqttSet("connect", tochararray(cstr, "disconnected ",event.reason), false);
+    mqttSet((char*)"connect", tochararray(cstr, (char*)"disconnected ",event.reason), false);
     if (WiFi.status() == WL_CONNECTED) {
       // See https://github.com/esp8266/Arduino/issues/5912
       ///////////////////////////// ???????????????????? WiFi.disconnect();
@@ -135,7 +138,7 @@ void mqttFailed(){
   DEBUG1_PRINT(para.mqtt_server);
   DEBUG1_PRINT(", ");
   DEBUG1_PRINTLN(para.mqtt_port);
-  mqttSet("mqttConnected", tochararray(cstr, client.state()));
+  mqttSet((char*)"mqttConnected", tochararray(cstr, client.state()));
 }
 
 /*  String macID = String(mac[WL_MAC_ADDR_LENGTH - 3], HEX) +
@@ -143,17 +146,18 @@ void mqttFailed(){
                  String(mac[WL_MAC_ADDR_LENGTH - 1], HEX);
   macID.toUpperCase();
 */
-char* macToEsp(const unsigned char* mac) {
-  char buf[10];
-  snprintf(buf, sizeof(buf), "ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
+void macToEsp(const unsigned char* mac, char* buf, byte len) {
+  //char buf[10];
+  snprintf(buf, len, "ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
   Serial.printf("ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
-  return buf;
+  //return buf;
 }
-String macToString(const unsigned char* mac) {
-  char buf[20];
-  snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X",
+void macToString(const unsigned char* mac, char* buf, byte len) {
+  //char buf[20];
+  
+  snprintf(buf, len, "%02X:%02X:%02X:%02X:%02X:%02X",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  return String(buf);
+  //return String(buf);
 }
 void mqttReconnect() {
   // Loop until we're reconnected
@@ -180,17 +184,17 @@ void mqttReconnect() {
         DEBUG1_PRINTLN(lSubscribe);
         mqttConnected = true;
         //timer1.deactivate();
-        mqttSet(para.mLwt, "up");
+        mqttSet(para.mLwt, (char*)"up");
         if (inSetup){
 #ifndef ESP32
-          mqttSet("ResetReason", tochararray(cstr, ESP.getResetReason()));
-          mqttSet("ResetInfo", tochararray(cstr, ESP.getResetInfo()));
-          mqttSet("ChipId", tochararray(cstr, ESP.getChipId()));
+          mqttSet((char*)"ResetReason", tochararray(cstr, ESP.getResetReason()));
+          mqttSet((char*)"ResetInfo", tochararray(cstr, ESP.getResetInfo()));
+          mqttSet((char*)"ChipId", tochararray(cstr, ESP.getChipId()));
 #else
-          mqttSet("ResetReason", tochararray(cstr, (int) rtc_get_reset_reason(0)));
+          mqttSet((char*)"ResetReason", tochararray(cstr, (int) rtc_get_reset_reason(0)));
 #endif
-          mqttSet("Heap", tochararray(cstr, ESP.getFreeHeap()));
-          mqttSet("Version", tochararray(cstr, mVersionNr, mVersionBoard));
+          mqttSet((char*)"Heap", tochararray(cstr, ESP.getFreeHeap()));
+          mqttSet((char*)"Version", tochararray(cstr, mVersionNr, mVersionBoard));
           inSetup = false;
         }
       }

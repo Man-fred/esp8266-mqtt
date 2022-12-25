@@ -60,11 +60,11 @@ bool handleFileRead(String path){
   if(path.endsWith("/")) path += "home.htm";
   String contentType = getContentType(path);
   String pathWithGz = path + ".gz";
-  if(SPIFFS.exists(pathWithGz) || SPIFFS.exists(path)){
-    if(SPIFFS.exists(pathWithGz))
+  if(LittleFS.exists(pathWithGz) || LittleFS.exists(path)){
+    if(LittleFS.exists(pathWithGz))
       path += ".gz";
     DEBUG2_PRINT("handleFileRead: " + path);
-    File file = SPIFFS.open(path, "r");
+    File file = LittleFS.open(path, "r");
     size_t sent = http.streamFile(file, contentType);
     file.close();
     DEBUG2_PRINTLN(" closed");
@@ -78,7 +78,7 @@ void handleFileUploadDirect() {
       String filename = upload.filename;
       if (!filename.startsWith("/")) filename = "/" + filename;
       DEBUG2_PRINT("handleFileUpload Start: "); DEBUG2_PRINTLN(filename);
-      fsUploadFile = SPIFFS.open(filename, "w");
+      fsUploadFile = LittleFS.open(filename, "w");
       filename = String();
     } else if (upload.status == UPLOAD_FILE_WRITE) {
       if (fsUploadFile) {
@@ -102,7 +102,7 @@ void handleFileUpload(){
     String filename = upload.filename;
     if(!filename.startsWith("/")) filename = "/"+filename;
     DEBUG2_PRINT("handleFileUpload Name: "); DEBUG2_PRINTLN(filename);
-    fsUploadFile = SPIFFS.open(filename, "w");
+    fsUploadFile = LittleFS.open(filename, "w");
     filename = String();
   } else if(upload.status == UPLOAD_FILE_WRITE){
     DEBUG2_PRINT("handleFileUpload Data: "); DEBUG2_PRINTLN(upload.currentSize);
@@ -121,9 +121,9 @@ void handleFileDelete(){
   DEBUG1_PRINTLN("handleFileDelete: " + path);
   if(path == "/")
     return http.send(500, "text/plain", "BAD PATH");
-  if(!SPIFFS.exists(path))
+  if(!LittleFS.exists(path))
     return http404();
-  SPIFFS.remove(path);
+  LittleFS.remove(path);
   http.send(200, "text/plain", "");
   path = String();
 }
@@ -135,9 +135,9 @@ void handleFileCreate(){
   DEBUG2_PRINTLN("handleFileCreate: " + path);
   if(path == "/")
     return http.send(500, "text/plain", "BAD PATH");
-  if(SPIFFS.exists(path))
+  if(LittleFS.exists(path))
     return http.send(500, "text/plain", "FILE EXISTS");
-  File file = SPIFFS.open(path, "w");
+  File file = LittleFS.open(path, "w");
   if(file)
     file.close();
   else
@@ -156,7 +156,7 @@ void handleFileList() {
 #else
   String path = http.arg("dir");
   DEBUG2_PRINTLN("handleFileList: " + path);
-  Dir dir = SPIFFS.openDir(path);
+  Dir dir = LittleFS.openDir(path);
   path = String();
 
   String output = "[";
@@ -269,7 +269,7 @@ char* getSsid(){
     for (int i = 0; i < ap_count; i++)
     {
       WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
-      sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%s\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
+      sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%d\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
       if (strlen(json) < 899)
         strcat(json, network);
     }
@@ -318,7 +318,7 @@ void httpConfig(){
     strncpy( para.mPre, http.arg("mPre").c_str(), 10); para.mPre[10 - 1] = '\0';
     strncpy( para.mSub, http.arg("mSub").c_str(), 10); para.mSub[10 - 1] = '\0';
     strncpy( para.mLwt, http.arg("mLwt").c_str(), 10); para.mLwt[10 - 1] = '\0';
-    strncpy( para.mKeypad, http.arg("mKeypad").c_str(), 25); para.mLwt[25 - 1] = '\0';
+    strncpy( para.mKeypad, http.arg("mKeypad").c_str(), 25); para.mKeypad[25 - 1] = '\0';
     para.timerMsec[0] = http.arg("timerMsec0").toInt();
     para.timerMsec[1] = http.arg("timerMsec1").toInt();
     para.timerMsec[2] = http.arg("timerMsec2").toInt();
@@ -374,7 +374,7 @@ void http404(){
 void listSpiffs(){
     DBG_OUTPUT_PORT.setDebugOutput(true);
 #ifndef ESP32
-    Dir dir = SPIFFS.openDir("/");
+    Dir dir = LittleFS.openDir("/");
     while (dir.next()) {    
       String fileName = dir.fileName();
       size_t fileSize = dir.fileSize();
@@ -385,9 +385,9 @@ void listSpiffs(){
 }
 void httpSetup() {
 #ifdef ESP32
-  SPIFFS.begin(true); // formatOnFail
+  LittleFS.begin(true); // formatOnFail
 #else
-  SPIFFS.begin();
+  LittleFS.begin();
 #endif
   listSpiffs();  
   //SERVER INIT

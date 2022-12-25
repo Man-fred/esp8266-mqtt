@@ -28,7 +28,7 @@ DS2450::DS2450(OneWire *ow) {
 
 boolean DS2450::begin(uint8_t *address) {
     _address = address;
-	begin();
+	return begin();
 }
 boolean DS2450::begin() {
     _ow->reset();

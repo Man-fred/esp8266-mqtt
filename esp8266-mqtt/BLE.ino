@@ -238,4 +238,4 @@ void bleLoop(){
         oldDeviceConnected = deviceConnected;
     }
 }
-#endif BLE
+#endif //BLE
