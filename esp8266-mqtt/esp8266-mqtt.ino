@@ -6,19 +6,20 @@
  *  V01-06 : Arduino 1.8.9,  
  *  V02-00-08: wie -07, aber Debuglevel 5 und mqtt feste IP
  *  V02-00-16: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel deaktiviert
+ *  V02-00-18: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel aktiviert
  */
-char mVersionNr[] = "V02-00-17.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-18.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
 #define DBG_OUTPUT_PORT Serial
 #endif
-#define DEBUG 3
+#define DEBUG 1
 
-//#define USE_IR
-//#define USE_NEOPIXEL
-#define USE_BH1745
-#define USE_BH1750
+#define USE_IR       // IR senden und empfangen
+#define USE_NEOPIXEL // LED-Band ansteuern
+#define USE_BH1745   // RGB-Farb-Sensor
+#define USE_BH1750   // Helligkeitssensor
 
 #ifdef USE_NEOPIXEL
   #define NEOPIXEL_KEYPAD 1
@@ -309,7 +310,7 @@ WiFiUDP udp;
 unsigned int localPort = 2390;  // local port to listen for UDP packets
 /* Don't hardwire the IP address or we won't get the benefits of the pool.
  *  Lookup the IP address for the host name instead */
-IPAddress timeServerIP;  // time.nist.gov NTP server address
+IPAddress timeServerIP;
 const char* ntpServerName = "time.nist.gov";
 const int NTP_PACKET_SIZE = 48;      // NTP time stamp is in the first 48 bytes of the message
 byte packetBuffer[NTP_PACKET_SIZE];  //buffer to hold incoming and outgoing packets
@@ -723,6 +724,7 @@ uint8_t bh1745_brightness = 0xFF;
   }
   void bh1745loop(void) {
     uint16_t illu, red, green, blue, lux;
+    float f_red, f_blue, f_green, f_lux;
     uint32_t ifactor;
 
     // Read and print out the colors in lux values
@@ -730,55 +732,52 @@ uint8_t bh1745_brightness = 0xFF;
     bh1745_green = bh1745.getGreenColor();
     bh1745_blue = bh1745.getBlueColor();
     bh1745_lux = bh1745.getClearColor();
-    DEBUG2_PRINT("Illuminance RGBW: ");
+/* AA3939 -> 170 57 57: gelesen 196 52 18 -> 0.86 1.09 3.16 
+ * AA3939 -> 170 57 57: gelesen 240 59 30 -> 0.71 0.97 1.90 
+ * AA3939 -> 170 57 57: gelesen 220 59 30 -> 0.77 0.97 1.90 
+ */
+    
+    f_red = (float)bh1745_red * 0.77; // 1.39;
+    f_green = (float)bh1745_green * 0.97; // 1.0
+    f_blue = (float)bh1745_blue * 1.9; //1.75;
+    f_lux = f_red > f_green ? f_red : f_green;
+    f_lux = f_lux > f_blue ? f_lux : f_blue;
+    if (f_lux > 255.0){
+      f_red = f_red * 255.0 / f_lux;
+      f_green = f_green * 255.0 / f_lux;
+      f_blue = f_blue * 255.0 / f_lux;
+    }
+    DEBUG2_PRINT("RGBW: ");
     DEBUG2_PRINT(bh1745_red);
     DEBUG2_PRINT(" ");
     DEBUG2_PRINT(bh1745_green);
     DEBUG2_PRINT(" ");
     DEBUG2_PRINT(bh1745_blue);
     DEBUG2_PRINT(" ");
-    DEBUG2_PRINTLN(bh1745_lux);
-    bh1745_color = red << 16 | green << 8 | blue;
-    red = bh1745_red;
-    green = bh1745_green;
-    blue = bh1745_blue;
-    /*
-      while (red <= 0x7F && green <= 0x7F && blue <= 0x7F){
-        red = red << 1;
-        green = green << 1;
-        blue = blue << 1;
-      }
-      while (red > 0xFF || green > 0xFF || blue > 0xFF){
-        red = red >> 1;
-        green = green >> 1;
-        blue = blue >> 1;
-      }
-      */
-    illu = red > green ? red : green;
-    illu = illu > blue ? illu : blue;
-    //lux = bh1745_lux > 800 ? 800 : bh1745_lux;
-    //ifactor = 256.0 / (float) illu ;//* (float) lux / 800.0;
-    //DEBUG2_PRINT("Factor to max: ");
-    //DEBUG2_PRINTLN(ifactor);
-    red = red * bh1745_brightness / illu;
-    green = green * bh1745_brightness / illu;
-    blue = blue * bh1745_brightness / illu;
-    red = red > 0xFF ? 0xFF : red;
-    green = green > 0xFF ? 0xFF : green;
-    blue = blue > 0xFF ? 0xFF : blue;
+    DEBUG2_PRINT(bh1745_lux);
 
-    // Output data to screen
-    bh1745_col2 = red << 16 | green << 8 | blue;
-    DEBUG2_PRINT("Colorsensor: ");
-    DEBUG2_PRINTLN(bh1745_color, HEX);
+    DEBUG2_PRINT(" rgb: ");
+    DEBUG2_PRINT(f_red);
+    DEBUG2_PRINT(" ");
+    DEBUG2_PRINT(f_green);
+    DEBUG2_PRINT(" ");
+    DEBUG2_PRINT(f_blue);
+
+    red = (uint8_t)f_red;
+    green = (uint8_t)f_green;
+    blue = (uint8_t)f_blue;
+    bh1745_color = red << 16 | green << 8 | blue;
+    bh1745_col2 = (byte)f_red << 16 | (byte)f_green << 8 | (byte)f_blue;
+    DEBUG2_PRINT(" Color: ");
+    DEBUG2_PRINT(bh1745_color, HEX);
     DEBUG2_PRINT(" ");
     DEBUG2_PRINTLN(bh1745_col2, HEX);
   #ifdef USE_NEOPIXEL
     if (pixelType == NEOPIXEL_AMBILIGHT) {
       for (byte i = 0; i < NEOPIXEL_COUNT; i++) {
-      strip.setPixelColor(0, bh1745_col2);  //  Set pixel's color (in RAM)
+        strip.setPixelColor(i, red, green, blue);  //  Set pixel's color (in RAM)
       }
-      pixelChanged = 1;
+      strip.show();                      
     }
   #endif
   }
@@ -1725,7 +1724,7 @@ void setupPixel() {
   if (pixelPin < 0xFF) {
     strip.setPin(pixelPin);
     strip.begin();                     // Initialize NeoPixel strip object (REQUIRED)
-    strip.setPixelColor(0, 0x050000);  //  Set pixel's color (in RAM)
+    strip.setPixelColor(0, 0x000000);  //  Set pixel's color (in RAM)
     strip.show();                      // Initialize all pixels to 'off'
     pixelChanged = 1;
   }
