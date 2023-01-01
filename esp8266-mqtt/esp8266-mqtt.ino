@@ -8,7 +8,7 @@
  *  V02-00-16: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel deaktiviert
  *  V02-00-18: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel aktiviert
  */
-char mVersionNr[] = "V02-00-18.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
@@ -93,6 +93,15 @@ char mVersionNr[] = "V02-00-18.esp8266-mqtt.ino.";
   #include <rom/rtc.h>
   
   const byte board = 3;
+  #define D0 GPIO_NUM_16
+  #define D1 GPIO_NUM_17
+  #define D2 GPIO_NUM_18
+  #define D3 GPIO_NUM_18
+  #define D4 GPIO_NUM_19
+  #define D5 GPIO_NUM_6
+  #define D6 GPIO_NUM_22
+  #define D7 GPIO_NUM_21
+  #define D8 GPIO_NUM_8
   const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
   char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
   String mVersionBoard = "nodemcu-32s";
