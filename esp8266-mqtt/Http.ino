@@ -65,7 +65,7 @@ bool handleFileRead(String path){
       path += ".gz";
     DEBUG2_PRINT("handleFileRead: " + path);
     File file = LittleFS.open(path, "r");
-    size_t sent = http.streamFile(file, contentType);
+    /*size_t sent = */ http.streamFile(file, contentType);
     file.close();
     DEBUG2_PRINTLN(" closed");
     return true;
@@ -262,20 +262,24 @@ char* getSsid(){
     int32_t RSSI;
     uint8_t* BSSID;
     int32_t channel;
-    bool isHidden;
+    bool isHidden = false;
 
     char * json = (char *) malloc (1000);
     strcpy (json, "[\n");
-#ifndef ESP32
+
     char network[100];
     for (int i = 0; i < ap_count; i++)
     {
+#ifndef ESP32
       WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel, isHidden);
+#else
+      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel);
+      #define ENC_TYPE_NONE WIFI_AUTH_OPEN
+#endif
       sprintf(network, "{\"SSID\":\"%s\",\"channel\":\"%d\",\"RSSI\":\"%d\",\"encryption\":\"%s\",\"hidden\":\"%s\" }\n", ssid.c_str(), channel, RSSI, encryptionType == ENC_TYPE_NONE ? " " : "*", isHidden ? "hidden" : "");
       if (strlen(json) < 899)
         strcat(json, network);
     }
-#endif
     strcat(json, "]");
     return(json);
 }
@@ -375,7 +379,7 @@ void http404(){
 }
 void listSpiffs(){
     DBG_OUTPUT_PORT.setDebugOutput(true);
-#ifndef ESP32
+//#ifndef ESP32
     Dir dir = LittleFS.openDir("/");
     while (dir.next()) {    
       String fileName = dir.fileName();
@@ -383,7 +387,7 @@ void listSpiffs(){
       DEBUG1_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
     }
     DEBUG1_PRINTF("\n");
-#endif
+//#endif
 }
 void httpSetup() {
 #ifdef ESP32
@@ -442,7 +446,7 @@ void httpSetup() {
     int32_t RSSI;
     uint8_t* BSSID;
     int32_t channel;
-    bool isHidden;
+    bool isHidden = false;
 
     String json = "[";
     for (int i = 0; i < ap_count; i++)
@@ -455,9 +459,10 @@ void httpSetup() {
             "\",\"RSSI\":\""+String(RSSI)+"\",\"encryption\":\""+(encryptionType == ENC_TYPE_NONE ? " " : "*")+
             "\",\"hidden\":\""+(isHidden ? "hidden" : "")+"\" }";
 #else
+      WiFi.getNetworkInfo(i, ssid, encryptionType, RSSI, BSSID, channel);
       String network = "{\"SSID\":\""+WiFi.SSID(i)+"\",\"channel\":\""+String(WiFi.channel(i))+
-            "\",\"RSSI\":\""+String(WiFi.RSSI(i))+"\",\"encryption\":\""+(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*", "")+
-            "\",\"hidden\":\" \" }";
+      "\",\"RSSI\":\""+String(WiFi.RSSI(i))+"\",\"encryption\":\""+(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? " " : "*") +
+      "\",\"hidden\":\""+(isHidden ? "hidden" : "")+"\" }";
 #endif
       json += network;
       DEBUG3_PRINTLN(network);

@@ -8,7 +8,7 @@
  *  V02-00-16: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel deaktiviert
  *  V02-00-18: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel aktiviert
  */
-char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
+char mVersionNr[] = "V02-00-21.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #ifndef DBG_OUTPUT_PORT
@@ -16,21 +16,20 @@ char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
 #endif
 #define DEBUG 1
 
-#define USE_IR       // IR senden und empfangen
-#define USE_NEOPIXEL // LED-Band ansteuern
+//#define USE_IR       // IR senden und empfangen
+#define NEOPIXEL_KEYPAD 1
+#define NEOPIXEL_AMBILIGHT 2
+#define NEOPIXEL_COLOR 3
+#define USE_NEOPIXEL NEOPIXEL_COLOR  // 1: keypad 0..9; 2: ambilight; 3: fix color
+
 #define USE_BH1745   // RGB-Farb-Sensor
 #define USE_BH1750   // Helligkeitssensor
 
 #ifdef USE_NEOPIXEL
-  #define NEOPIXEL_KEYPAD 1
-  #define NEOPIXEL_AMBILIGHT 2
-  #define NEOPIXEL_COLOR 3
-  #define USE_NEOPIXEL NEOPIXEL_AMBILIGHT  // 1: keypad 0..9; 2: ambilight; 3: fix color
-
   #if USE_NEOPIXEL == NEOPIXEL_KEYPAD
-    #define NEOPIXEL_COUNT 10  // Number of NeoPixels: Keypad 10, Test 1
+    byte NEOPIXEL_COUNT = 10;  // Number of NeoPixels: Keypad 10, Test 1
   #else
-    #define NEOPIXEL_COUNT 1
+    byte NEOPIXEL_COUNT = 120;
   #endif
 #endif
 
@@ -63,7 +62,7 @@ char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
   #define PIN_MAX 9
   const byte board = 1;
   const byte Pin[PIN_MAX] = { D7, D6, D5, D8, D4, D1, D2, D0, D3 };  // reed3 oder S3
-  char* PinName[] = { (char*)"D.7", "D.6", "D.5", "D.8", "D.4", "D.1", "D.2", "D.0", "D.3" };
+  char* PinName[] = { (char*)"D.7", (char*)"D.6", (char*)"D.5", (char*)"D.8", (char*)"D.4", (char*)"D.1", (char*)"D.2", (char*)"D.0", (char*)"D.3" };
   String mVersionBoard = "nodemcu";
 #elif ARDUINO_ESP8266_WEMOS_D1MINI
   #include <ESP8266WiFi.h>
@@ -103,11 +102,11 @@ char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
   #define D7 GPIO_NUM_21
   #define D8 GPIO_NUM_8
   const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  char* PinName[] = { (char*)"D.16", (char*)"D.17", (char*)"D.18", (char*)"D.19", (char*)"D.6", (char*)"D.22", (char*)"D.21", (char*)"D.2", (char*)"D.8" };
   String mVersionBoard = "nodemcu-32s";
 #elif DEVICE_ESP32_DEV
   #define PIN_MAX 9
-  #define BLE
+  // #define BLE
   #define WL_MAC_ADDR_LENGTH 8
   #include <WiFi.h>
   // enables OTA updates
@@ -123,11 +122,42 @@ char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
   
   const byte board = 6;
   const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  char* PinName[] = { (char*)"D.16", (char*)"D.17", (char*)"D.18", (char*)"D.19", (char*)"D.6", (char*)"D.22", (char*)"D.21", (char*)"D.2", (char*)"D.8" };
+  String mVersionBoard = "esp32";
+#elif ARDUINO_d1_mini32
+  #define PIN_MAX 9
+  // #define BLE
+  #define WL_MAC_ADDR_LENGTH 8
+  //# define SYSTEM_EVENT_STA_LOST_IP 8
+  //# define SYSTEM_EVENT_GOT_IP6 19
+  #include <WiFi.h>
+  // enables OTA updates
+  #include <HTTPUpdate.h>
+  #include <HTTPClient.h>
+  
+  // enables webconfig
+  #include <WebServer.h>
+  #include <ESPmDNS.h>
+  //#include <SPIFFS.h>
+  #include "LittleFS.h" // LittleFS is declared
+  #include <rom/rtc.h>
+  
+  const byte board = 7;
+  #define D0 GPIO_NUM_26
+  #define D1 GPIO_NUM_22 // i2c CL
+  #define D2 GPIO_NUM_21 // i2c DA
+  #define D3 GPIO_NUM_17
+  #define D4 GPIO_NUM_16
+  #define D5 GPIO_NUM_18 // spi SCK
+  #define D6 GPIO_NUM_19 // spi MISO
+  #define D7 GPIO_NUM_23 // spi MOSI 
+  #define D8 GPIO_NUM_5  // spi CS
+  const byte Pin[] = { GPIO_NUM_26, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_5 };  // D5: reed3 in oder S3 out
+  char* PinName[] = { (char*)"D.26", (char*)"D.22", (char*)"D.21", (char*)"D.17", (char*)"D.16", (char*)"D.18", (char*)"D.19", (char*)"D.23", (char*)"D.5" };
   String mVersionBoard = "esp32";
 #elif ESP32
   #define PIN_MAX 9
-  #define BLE
+  // #define BLE
   #define WL_MAC_ADDR_LENGTH 8
   //# define SYSTEM_EVENT_STA_LOST_IP 8
   //# define SYSTEM_EVENT_GOT_IP6 19
@@ -144,8 +174,17 @@ char mVersionNr[] = "V02-00-19.esp8266-mqtt.ino.";
   #include <rom/rtc.h>
   
   const byte board = 4;
-  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
-  char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
+  #define D0 GPIO_NUM_26
+  #define D1 GPIO_NUM_22 // i2c CL
+  #define D2 GPIO_NUM_21 // i2c DA
+  #define D3 GPIO_NUM_17
+  #define D4 GPIO_NUM_16
+  #define D5 GPIO_NUM_18 // spi SCK
+  #define D6 GPIO_NUM_19 // spi MISO
+  #define D7 GPIO_NUM_23 // spi MOSI 
+  #define D8 GPIO_NUM_5  // spi CS
+  const byte Pin[] = { GPIO_NUM_26, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_5 };  // D5: reed3 in oder S3 out
+  char* PinName[] = { (char*)"D.26", (char*)"D.22", (char*)"D.21", (char*)"D.17", (char*)"D.16", (char*)"D.18", (char*)"D.19", (char*)"D.23", (char*)"D.5" };
   String mVersionBoard = "esp32";
 #else
   #define PIN_MAX 9
@@ -285,6 +324,7 @@ struct Parameter {
   char mKeypad[25];
   bool i2c;
   bool onewire;
+  byte neopixelCount;
   unsigned int checksum;
 };
 
@@ -592,7 +632,7 @@ void getPara() {
 
   EEPROM.begin(512);
   EEPROM.get(0, para);
-  if (para.pVersion > 0 && (para.pVersion2 == (123456 + para.pVersion))) {
+  if (true) { //para.pVersion > 0 && (para.pVersion2 == (123456 + para.pVersion))) {
     DEBUG1_PRINTLN("Flash loaded");
     testPara();
     //Notfallsystem, MQTT übersteuern: strncpy( para.mqtt_server, "192.168.178.126", 20); para.mqtt_server[20 - 1] = '\0';
@@ -654,7 +694,7 @@ void mqttSet(char* key, char* value, boolean retain = true, int qos = 0) {
   if (payload < MQTT_MAX_TOPIC_SIZE) {
     strncpy(mPayloadKey[mPayloadSet], para.mPre, strlen(para.mPre));
     strncat(mPayloadKey[mPayloadSet], para.mClient, strlen(para.mClient));
-    strncat(mPayloadKey[mPayloadSet], "/", 1);
+    strncat(mPayloadKey[mPayloadSet], "//", 1);
     strncat(mPayloadKey[mPayloadSet], key, strlen(key));
     mPayloadKey[mPayloadSet][payload] = '\0';
     payload = strlen(value);
@@ -713,28 +753,31 @@ uint8_t bh1745_brightness = 0xFF;
   uint16_t bh1745_lux = 0;
 
   boolean bh1745setup(void) {
-    bh1745.getAddr_BH1745NUC(BH1745NUC_DEFAULT_ADDRESS);  // 0x38, 0111000
-    bh1745.setSWReset(SW_RESET_NOT_START);                // Initial reset is not started
-    // bh1745.setSWReset(SW_RESET_START);                   // Initial reset is started
-
-    bh1745.setMeasTime(MEAS_TIME_640);       // 010 : 640 msec
-    bh1745.setRGBCValid(RGBC_VALID_UPDATE);  // RGBC data is updated after last writing MODE_CONTROL1,2 register or last reading MODE_CONTROL2 register
-    bh1745.setRGBCEnable(RGBC_EN_ACTIVE);    // RGBC measurement is active
-    // bh1745.setRGBCEnable(RGBC_EN_INACTIVE);              // RGBC measurement is inactive and becomes power down
-
-    bh1745.setADCGain(ADC_GAIN_1X);                   // 00 : 1X
-    bh1745.setINTStatus(STATUS_INACTIVE);             // Interrupt signal is inactive
-    bh1745.setINTLatch(INT_LATCH_LATCHED);            // INTERRUPT pin is latched until INTERRUPT register is read or initialized
-    bh1745.setINTEnable(INT_ENABLE_DISABLE);          // INTERRUPT pin disable
-    bh1745.setPersistance(PERSISTENCE_UPDATED_EACH);  // Interrupt status is updated at each measurement end
-    bh1745.Initialize();
-    //delay(30);
-    return true;  //this is only wire.begin(): bh1745.begin();
+    if (false){ //readRegister(bh1745.bh_i2cAddress, BH1745NUC_CMD_MANUFACTURER_ID) == 0xE0){
+      bh1745.getAddr_BH1745NUC(BH1745NUC_DEFAULT_ADDRESS);  // 0x38, 0111000
+      bh1745.setSWReset(SW_RESET_NOT_START);                // Initial reset is not started
+      // bh1745.setSWReset(SW_RESET_START);                   // Initial reset is started
+  
+      bh1745.setMeasTime(MEAS_TIME_640);       // 010 : 640 msec
+      bh1745.setRGBCValid(RGBC_VALID_UPDATE);  // RGBC data is updated after last writing MODE_CONTROL1,2 register or last reading MODE_CONTROL2 register
+      bh1745.setRGBCEnable(RGBC_EN_ACTIVE);    // RGBC measurement is active
+      // bh1745.setRGBCEnable(RGBC_EN_INACTIVE);              // RGBC measurement is inactive and becomes power down
+  
+      bh1745.setADCGain(ADC_GAIN_1X);                   // 00 : 1X
+      bh1745.setINTStatus(STATUS_INACTIVE);             // Interrupt signal is inactive
+      bh1745.setINTLatch(INT_LATCH_LATCHED);            // INTERRUPT pin is latched until INTERRUPT register is read or initialized
+      bh1745.setINTEnable(INT_ENABLE_DISABLE);          // INTERRUPT pin disable
+      bh1745.setPersistance(PERSISTENCE_UPDATED_EACH);  // Interrupt status is updated at each measurement end
+      bh1745.Initialize();
+      //delay(30);
+      return true;  //this is only wire.begin(): bh1745.begin();
+    } else {
+      return false;
+    }
   }
   void bh1745loop(void) {
-    uint16_t illu, red, green, blue, lux;
+    uint16_t red, green, blue;
     float f_red, f_blue, f_green, f_lux;
-    uint32_t ifactor;
 
     // Read and print out the colors in lux values
     bh1745_red = bh1745.getRedColor();
@@ -783,7 +826,7 @@ uint8_t bh1745_brightness = 0xFF;
     DEBUG2_PRINTLN(bh1745_col2, HEX);
   #ifdef USE_NEOPIXEL
     if (pixelType == NEOPIXEL_AMBILIGHT) {
-      for (byte i = 0; i < NEOPIXEL_COUNT; i++) {
+      for (byte i = 0; i < para.neopixelCount; i++) {
         strip.setPixelColor(i, red, green, blue);  //  Set pixel's color (in RAM)
       }
       strip.show();                      
@@ -1159,7 +1202,6 @@ void i2cScan(boolean mqtt = false) {
   char msg[37];
   if (!mqtt) DEBUG_PRINTLN("Scanning...");
   nDevices = 0;
-  int _data;
   for (address = 1; address < 127; address++) {
     // The i2c scanner uses the return value of
     // the Write.endTransmisstion to see if

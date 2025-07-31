@@ -345,6 +345,9 @@ bool BH1750FVI::write8(uint8_t value)
   Wire.send(value);
   #endif
   
-  if (Wire.endTransmission(true) == 0) return true;  //"true" sends stop message after transmission & releases I2C bus
-                                       return false;
+  if (Wire.endTransmission(true) == 0) {
+	return true; //"true" sends stop message after transmission & releases I2C bus
+  } else {  
+    return false;
+  }
 }
