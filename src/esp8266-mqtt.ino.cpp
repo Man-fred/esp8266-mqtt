@@ -9,17 +9,18 @@
  *  V02-00-18: nach Exeptions in neuer Arduinoversion jetzt wieder stabil, IR, BH1745 und Neopixel aktiviert
  *  V03-00-01: PlatformIO, Arduino 1.8.13, ESP8266/ESP32, MQTT, OTA, Webserver, SPIFFS, LittleFS, EEPROM
  */
+#include <stdint.h>
 char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
 /* Achtung: 1MB SPIFFS einstellen */
 
 #define DEBUG 0
-
+//#define byte uint8_t
 //#define USE_IR       // IR senden und empfangen
 
 #define NEOPIXEL_KEYPAD 1
 #define NEOPIXEL_AMBILIGHT 2
 #define NEOPIXEL_COLOR 3
-//#define USE_NEOPIXEL NEOPIXEL_COLOR  // 1: keypad 0..9; 2: ambilight; 3: fix color
+#define USE_NEOPIXEL NEOPIXEL_COLOR  // 1: keypad 0..9; 2: ambilight; 3: fix color
 
 //#define USE_BH1745   // RGB-Farb-Sensor
 //#define USE_BH1750   // Helligkeitssensor
@@ -35,10 +36,14 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
 
 #ifdef USE_NEOPIXEL
   #if USE_NEOPIXEL == NEOPIXEL_KEYPAD
-    byte NEOPIXEL_COUNT = 10;  // Number of NeoPixels: Keypad 10, Test 1
+    uint8_t NEOPIXEL_COUNT = 10;  // Number of NeoPixels: Keypad 10, Test 1
   #else
-    byte NEOPIXEL_COUNT = 120;
+    uint8_t NEOPIXEL_COUNT = 120;
   #endif
+  void pixelRgb(uint8_t nr, uint8_t* payload, unsigned int mLength, uint8_t to_nr);
+  void pixelRgb(uint8_t nr, uint8_t* payload, unsigned int mLength);
+  void pixelBrightness(uint8_t nr, uint8_t* payload, unsigned int mLength);
+
 #endif
 #ifdef USE_ADS1X15
   #include "Adafruit_ADS1X15.h"
@@ -85,8 +90,8 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include <ESP8266WebServer.h>
   #include <ESP8266mDNS.h>
   #define PIN_MAX 9
-  const byte board = 1;
-  const byte Pin[PIN_MAX] = { D7, D6, D5, D8, D4, D1, D2, D0, D3 };  // reed3 oder S3
+  const uint8_t board = 1;
+  const uint8_t Pin[PIN_MAX] = { D7, D6, D5, D8, D4, D1, D2, D0, D3 };  // reed3 oder S3
   char* PinName[] = { (char*)"D.7", (char*)"D.6", (char*)"D.5", (char*)"D.8", (char*)"D.4", (char*)"D.1", (char*)"D.2", (char*)"D.0", (char*)"D.3" };
   String mVersionBoard = "nodemcu";
 #elif ARDUINO_ESP8266_WEMOS_D1MINI
@@ -98,8 +103,8 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include <ESP8266mDNS.h>
   #include "LittleFS.h"
   #define PIN_MAX 9
-  const byte board = 2;
-  const byte Pin[] = { D7, D6, D5, D0, D3, D1, D2, D4, D8 };
+  const uint8_t board = 2;
+  const uint8_t Pin[] = { D7, D6, D5, D0, D3, D1, D2, D4, D8 };
   char* PinName[] = { (char*)"D.7", (char*)"D.6", (char*)"D.5", (char*)"D.0", (char*)"D.3", (char*)"D.1", (char*)"D.2", (char*)"D.4", (char*)"D.8" };  //(char*) vor jedem String
   char mVersionBoard[] = "d1_mini";
 #elif ARDUINO_NodeMCU_32S
@@ -117,7 +122,7 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include "LittleFS.h" // LittleFS is declared
   #include <rom/rtc.h>
   
-  const byte board = 3;
+  const uint8_t board = 3;
   #define D0 GPIO_NUM_16
   #define D1 GPIO_NUM_17
   #define D2 GPIO_NUM_18
@@ -127,7 +132,7 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #define D6 GPIO_NUM_22
   #define D7 GPIO_NUM_21
   #define D8 GPIO_NUM_8
-  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  const uint8_t Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
   char* PinName[] = { (char*)"D.16", (char*)"D.17", (char*)"D.18", (char*)"D.19", (char*)"D.6", (char*)"D.22", (char*)"D.21", (char*)"D.2", (char*)"D.8" };
   String mVersionBoard = "nodemcu-32s";
 #elif DEVICE_ESP32_DEV
@@ -146,8 +151,8 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include "LittleFS.h" // LittleFS is declared
   #include <rom/rtc.h>
   
-  const byte board = 6;
-  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  const uint8_t board = 6;
+  const uint8_t Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
   char* PinName[] = { (char*)"D.16", (char*)"D.17", (char*)"D.18", (char*)"D.19", (char*)"D.6", (char*)"D.22", (char*)"D.21", (char*)"D.2", (char*)"D.8" };
   String mVersionBoard = "esp32";
 #elif ARDUINO_d1_mini32
@@ -168,7 +173,7 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include "LittleFS.h" // LittleFS is declared
   #include <rom/rtc.h>
   
-  const byte board = 7;
+  const uint8_t board = 7;
   #define D0 GPIO_NUM_26
   #define D1 GPIO_NUM_22 // i2c CL
   #define D2 GPIO_NUM_21 // i2c DA
@@ -178,7 +183,7 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #define D6 GPIO_NUM_19 // spi MISO
   #define D7 GPIO_NUM_23 // spi MOSI 
   #define D8 GPIO_NUM_5  // spi CS
-  const byte Pin[] = { GPIO_NUM_26, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_5 };  // D5: reed3 in oder S3 out
+  const uint8_t Pin[] = { GPIO_NUM_26, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_5 };  // D5: reed3 in oder S3 out
   char* PinName[] = { (char*)"D.26", (char*)"D.22", (char*)"D.21", (char*)"D.17", (char*)"D.16", (char*)"D.18", (char*)"D.19", (char*)"D.23", (char*)"D.5" };
   String mVersionBoard = "esp32";
 #elif ESP32
@@ -199,7 +204,7 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include "LittleFS.h" // LittleFS is declared
   #include <rom/rtc.h>
   
-  const byte board = 4;
+  const uint8_t board = 4;
   #define D0 GPIO_NUM_26
   #define D1 GPIO_NUM_22 // i2c CL
   #define D2 GPIO_NUM_21 // i2c DA
@@ -209,7 +214,7 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #define D6 GPIO_NUM_19 // spi MISO
   #define D7 GPIO_NUM_23 // spi MOSI 
   #define D8 GPIO_NUM_5  // spi CS
-  const byte Pin[] = { GPIO_NUM_26, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_5 };  // D5: reed3 in oder S3 out
+  const uint8_t Pin[] = { GPIO_NUM_26, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_17, GPIO_NUM_16, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_23, GPIO_NUM_5 };  // D5: reed3 in oder S3 out
   char* PinName[] = { (char*)"D.26", (char*)"D.22", (char*)"D.21", (char*)"D.17", (char*)"D.16", (char*)"D.18", (char*)"D.19", (char*)"D.23", (char*)"D.5" };
   String mVersionBoard = "esp32";
 #else
@@ -224,8 +229,8 @@ char mVersionNr[] = "V03-00-01.esp8266-mqtt.ino.";
   #include <ESPmDNS.h>
   //#include <SPIFFS.h>
   #include "LittleFS.h" // LittleFS is declared
-  const byte board = 5;
-  const byte Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
+  const uint8_t board = 5;
+  const uint8_t Pin[] = { GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_6, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_2, GPIO_NUM_8 };  // D5: reed3 in oder S3 out
   char* PinName[] = { "D.16", "D.17", "D.18", "D.19", "D.6", "D.22", "D.21", "D.2", "D.8" };
   String mVersionBoard = ARDUINO_VARIANT;
 #endif
@@ -268,19 +273,19 @@ String fillNtpTime(unsigned long epoch);
 
 boolean bleScanActive = true;
 
-byte ONE_WIRE_BUS = Pin[4];
-byte sclPin = Pin[5];
-byte sdaPin = Pin[6];
-byte ledPin = Pin[7];  //BUILTIN_LED;
-byte ledPinOn = 0;
-byte pwmPin = 0;
-byte pwmPinOn = 0;
+uint8_t ONE_WIRE_BUS = Pin[4];
+uint8_t sclPin = Pin[5];
+uint8_t sdaPin = Pin[6];
+uint8_t ledPin = Pin[7];  //BUILTIN_LED;
+uint8_t ledPinOn = 0;
+uint8_t pwmPin = 0;
+uint8_t pwmPinOn = 0;
 
 #ifdef USE_NEOPIXEL
   #include <string>
-  byte pixelPin = 0xFF;  // Digital IO pin connected to the NeoPixels, set later
-  byte pixelChanged = 0;
-  byte pixelType = USE_NEOPIXEL;
+  uint8_t pixelPin = 0xFF;  // Digital IO pin connected to the NeoPixels, set later
+  uint8_t pixelChanged = 0;
+  uint8_t pixelType = USE_NEOPIXEL;
   #include <Adafruit_NeoPixel.h>
   // Declare our NeoPixel strip object:
   Adafruit_NeoPixel strip(NEOPIXEL_COUNT, -1, NEO_GRB + NEO_KHZ800);
@@ -372,14 +377,14 @@ struct Parameter {
   unsigned int pVersion2;
 
   int timerMsec[3];
-  byte pin[PIN_MAX];  // 0: inaktiv, 1: Sensor, 2: Schalter, 3: Alarm, 4: PWM
-  byte GpioOn[PIN_MAX];
-  byte GpioLedOn;
+  uint8_t pin[PIN_MAX];  // 0: inaktiv, 1: Sensor, 2: Schalter, 3: Alarm, 4: PWM
+  uint8_t GpioOn[PIN_MAX];
+  uint8_t GpioLedOn;
   int analog;
   char mKeypad[25];
   bool i2c;
   bool onewire;
-  byte neopixelCount;
+  uint8_t neopixelCount;
   unsigned int checksum;
 };
 struct Parameter para;
@@ -395,7 +400,7 @@ Adafruit_BME280 bmp;
 boolean bmpActive = false;
 boolean bmeActive = false;
 uint32_t bmpTyp;
-//byte bmpADDR;
+//uint8_t bmpADDR;
 double bmpT = 0;
 double bmpP = 0;
 double bmeH = 0;
@@ -426,7 +431,7 @@ boolean adsActive[3] = {false,false,false};
   boolean dsActive = false;
   int ds1820Sensors = 0;
   int ds2450Sensors = 0;
-  byte dsAddr[MAX_DS18B20][8];
+  uint8_t dsAddr[MAX_DS18B20][8];
   float dsTemp[MAX_DS18B20];
   float dsAD[4];
   unsigned long dsTime[MAX_DS18B20];
@@ -443,7 +448,7 @@ int reedTimer[PIN_MAX];
 int reedAlarmstate = 0;  // 0: not armed, 1-7: armed
 int reedSensor = 0;      // 0: no action, 1: Gpio1, 2: Gpio2, 4: Gpio3, 8: Gpio4
 int reedActor = 0;       // 0: no action, 1: internal, 2: light, 4: external sirene, 8: reserve
-byte reedAlarmtoggle = 0;
+uint8_t reedAlarmtoggle = 0;
 
 #define PIN_NOTHING 0
 #define PIN_SENSOR 1
@@ -475,15 +480,15 @@ char cstr[MQTT_MAX_PACKET_SIZE];
 char cmessage[MQTT_MAX_PACKET_SIZE];
 char cpart[MQTT_MAX_PACKET_SIZE];
 void mqttSet(char* key, char* value, boolean retain = true, int qos = 0);
-void callback(char* topic, byte* payload, unsigned int mLength);
+void callback(char* topic, uint8_t* payload, unsigned int mLength);
 void keyclick(boolean clicking, int freq, int period);
 void setup1wire(boolean rescan);
 void ads1x15_loop();;
 void testPara();
 void setupPinmode();
 void restartDelay();
-void macToEsp(const unsigned char* mac, char* buf, byte len);
-void macToString(const unsigned char* mac, char* buf, byte len);
+void macToEsp(const unsigned char* mac, char* buf, uint8_t len);
+void macToString(const unsigned char* mac, char* buf, uint8_t len);
 
 /////// http.ino
 /* 
@@ -601,7 +606,7 @@ MyTimer timerRestartDelay;  // restart delay in websession and in station mode
 MyTimer timerAlarmloop;     // alarm sensors delay
 MyTimer timerAlarmstate;    // blink LED for local alarm
 
-const byte hex[17] = "0123456789ABCDEF";
+const uint8_t hex[17] = "0123456789ABCDEF";
 
 char* tochararray(char* cvalue, int value) {
   itoa(value, cvalue, 10);
@@ -629,7 +634,7 @@ char* tochararray(char* cvalue, float value, int len, int nachkomma) {
 
 char* tochararray(char* cvalue, char* value1, char value2) {
   strcpy(cvalue, value1);
-  byte len = strlen(value1);
+  uint8_t len = strlen(value1);
   cvalue[len] = hex[(value2 & 0xF0) >> 4];
   cvalue[len + 1] = hex[value2 & 0x0F];
   cvalue[len + 2] = '\0';
@@ -692,16 +697,16 @@ void http404(){
   http.send(404, "text/html", response_message);
 }
 
-//format bytes
-String formatBytes(size_t bytes){
-  if (bytes < 1024){
-    return String(bytes)+"B";
-  } else if(bytes < (1024 * 1024)){
-    return String(bytes/1024.0)+"KB";
-  } else if(bytes < (1024 * 1024 * 1024)){
-    return String(bytes/1024.0/1024.0)+"MB";
+//format uint8_ts
+String formatuint8_ts(size_t uint8_ts){
+  if (uint8_ts < 1024){
+    return String(uint8_ts)+"B";
+  } else if(uint8_ts < (1024 * 1024)){
+    return String(uint8_ts/1024.0)+"KB";
+  } else if(uint8_ts < (1024 * 1024 * 1024)){
+    return String(uint8_ts/1024.0/1024.0)+"MB";
   } else {
-    return String(bytes/1024.0/1024.0/1024.0)+"GB";
+    return String(uint8_ts/1024.0/1024.0/1024.0)+"GB";
   }
 }
 
@@ -847,7 +852,7 @@ void handleFileList() {
 }
 
 String getConfig(){
-    byte i;
+    uint8_t i;
     String json = "{";
     json += "\"pVersion\":\""+String(para.pVersion + 1);
     json += "\",\"ssid\":\""+ String(para.ssid);
@@ -878,7 +883,7 @@ String getConfig(){
     return json;
 }
 String getIndex(){
-    byte i;
+    uint8_t i;
     String json = "{";
     json += "\"myTitle\":\""+String(para.mClient);
     json += "\",\"myStatus\":\"";
@@ -998,7 +1003,7 @@ void httpConfig(){
     para.timerMsec[0] = http.arg("timerMsec0").toInt();
     para.timerMsec[1] = http.arg("timerMsec1").toInt();
     para.timerMsec[2] = http.arg("timerMsec2").toInt();
-    for (byte i = 0; i < PIN_MAX; i++) {
+    for (uint8_t i = 0; i < PIN_MAX; i++) {
       para.pin[i] = http.arg("pin"+String(i)).toInt();
       para.GpioOn[i] = http.arg("GpioOn"+String(i)).toInt();
     }
@@ -1023,8 +1028,8 @@ void listSpiffs(){
     Dir dir = LittleFS.openDir("/");
     while (dir.next()) {    
       String fileName = dir.fileName();
-      size_t fileSize = dir.fileSize();
-      DEBUG1_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatBytes(fileSize).c_str());
+      // size_t fileSize = dir.fileSize();
+      DEBUG1_PRINTF("FS File: %s, size: %s\n", fileName.c_str(), formatuint8_ts(dir.fileSize()).c_str());
     }
     DEBUG1_PRINTF("\n");
 //#endif
@@ -1145,8 +1150,8 @@ unsigned int localPort = 2390;  // local port to listen for UDP packets
  *  Lookup the IP address for the host name instead */
 IPAddress timeServerIP;
 const char* ntpServerName = "time.nist.gov";
-const int NTP_PACKET_SIZE = 48;      // NTP time stamp is in the first 48 bytes of the message
-byte packetBuffer[NTP_PACKET_SIZE];  //buffer to hold incoming and outgoing packets
+const int NTP_PACKET_SIZE = 48;      // NTP time stamp is in the first 48 uint8_ts of the message
+uint8_t packetBuffer[NTP_PACKET_SIZE];  //buffer to hold incoming and outgoing packets
 //========= Variables for sketch-part "Ntp" ===============
 
 String fillNtpTime(unsigned long epoch) {
@@ -1252,7 +1257,7 @@ void getNTP() {
 
   // send an NTP request to the time server at the given address
   DEBUG1_PRINTLN("sending NTP packet...");
-  // set all bytes in the buffer to 0
+  // set all uint8_ts in the buffer to 0
   memset(packetBuffer, 0, NTP_PACKET_SIZE);
   // Initialize values needed to form NTP request
   // (see URL above for details on the packets)
@@ -1260,7 +1265,7 @@ void getNTP() {
   packetBuffer[1] = 0;     // Stratum, or type of clock
   packetBuffer[2] = 6;     // Polling Interval
   packetBuffer[3] = 0xEC;  // Peer Clock Precision
-  // 8 bytes of zero for Root Delay & Root Dispersion
+  // 8 uint8_ts of zero for Root Delay & Root Dispersion
   packetBuffer[12]  = 49;
   packetBuffer[13]  = 0x4E;
   packetBuffer[14]  = 49;
@@ -1287,12 +1292,12 @@ void getNTP() {
     ntpTime.startup = millis()/1000;
     udp.stop();
     
-    //the timestamp starts at byte 40 of the received packet and is four bytes,
+    //the timestamp starts at uint8_t 40 of the received packet and is four uint8_ts,
     // or two words, long. First, esxtract the two words:
 
     unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
     unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-    // combine the four bytes (two words) into a long integer
+    // combine the four uint8_ts (two words) into a long integer
     // this is NTP time (seconds since Jan 1 1900):
     unsigned long secsSince1900 = highWord << 16 | lowWord;
     DEBUG3_PRINT("Seconds since Jan 1 1900 = " );
@@ -1360,7 +1365,7 @@ esp_ble_addr_type_t addressType[BLE_MAX_DEVICES];
 int oldState[BLE_MAX_DEVICES] = {0};
 int newState[BLE_MAX_DEVICES] = {0}; // 0: frei, 1: erkannt, 2: verloren
 boolean inBleScan = false;
-byte bleChanged = 0;
+uint8_t bleChanged = 0;
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 
@@ -1735,13 +1740,13 @@ void mqttFailed(){
                  String(mac[WL_MAC_ADDR_LENGTH - 1], HEX);
   macID.toUpperCase();
 */
-void macToEsp(const unsigned char* mac, char* buf, byte len) {
+void macToEsp(const unsigned char* mac, char* buf, uint8_t len) {
   //char buf[10];
   snprintf(buf, len, "ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
   Serial.printf("ESP%02X%02X%02X", mac[3], mac[4], mac[5]);
   //return buf;
 }
-void macToString(const unsigned char* mac, char* buf, byte len) {
+void macToString(const unsigned char* mac, char* buf, uint8_t len) {
   //char buf[20];
   
   snprintf(buf, len, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -1836,7 +1841,7 @@ void getPara() {
     para.mqtt_server[14] = '\0';
     para.mqtt_port = 1883;
     /*strncpy( para.mClient, "ESP", 20); para.mClient[20 - 1] = '\0';
-    for (byte i = 3; i < 6; ++i) {
+    for (uint8_t i = 3; i < 6; ++i) {
       para.mClient[2+(i*2)] = hex[(para.mMac[i] & 0xF0) >> 4];
       para.mClient[3+(i*2)] = hex[para.mMac[i] & 0x0F];
     }*/
@@ -1855,7 +1860,7 @@ void getPara() {
     para.timerMsec[0] = 1000;
     para.timerMsec[1] = 60000;
     para.timerMsec[2] = 20000;
-    for (byte i = 0; i < PIN_MAX; ++i) {
+    for (uint8_t i = 0; i < PIN_MAX; ++i) {
       para.pin[i] = PIN_NOTHING;
       para.GpioOn[i] = 0;
     }
@@ -1880,7 +1885,7 @@ void getPara() {
 }
 
 void mqttSet(char* key, char* value, boolean retain, int qos) {
-  byte payload = strlen(para.mPre) + strlen(para.mClient) + 1 + strlen(key);
+  uint8_t payload = strlen(para.mPre) + strlen(para.mClient) + 1 + strlen(key);
   if (payload < MQTT_MAX_TOPIC_SIZE) {
     strncpy(mPayloadKey[mPayloadSet], para.mPre, strlen(para.mPre));
     strncat(mPayloadKey[mPayloadSet], para.mClient, strlen(para.mClient));
@@ -2009,14 +2014,14 @@ uint8_t bh1745_brightness = 0xFF;
     green = (uint8_t)f_green;
     blue = (uint8_t)f_blue;
     bh1745_color = red << 16 | green << 8 | blue;
-    bh1745_col2 = (byte)f_red << 16 | (byte)f_green << 8 | (byte)f_blue;
+    bh1745_col2 = (uint8_t)f_red << 16 | (uint8_t)f_green << 8 | (uint8_t)f_blue;
     DEBUG2_PRINT(" Color: ");
     DEBUG2_PRINT(bh1745_color, HEX);
     DEBUG2_PRINT(" ");
     DEBUG2_PRINTLN(bh1745_col2, HEX);
   #ifdef USE_NEOPIXEL
     if (pixelType == NEOPIXEL_AMBILIGHT) {
-      for (byte i = 0; i < para.neopixelCount; i++) {
+      for (uint8_t i = 0; i < para.neopixelCount; i++) {
         strip.setPixelColor(i, red, green, blue);  //  Set pixel's color (in RAM)
       }
       strip.show();                      
@@ -2133,9 +2138,9 @@ void bmp280loop() {
 boolean dsSetup(boolean rescan) {
   #ifdef USE_DS_SENSORS
     #ifndef ESP32
-      byte i, j;
-      //byte present = 0;
-      //byte data[12];
+      uint8_t i, j;
+      //uint8_t present = 0;
+      //uint8_t data[12];
       String addr = "";
       ds.begin(ONE_WIRE_BUS);
       pinMode(ONE_WIRE_BUS, INPUT_PULLUP);
@@ -2314,7 +2319,7 @@ void setAlarmLED() {
   //DEBUG1_PRINTLN("reedLED "+String(reedAlarmtoggle & 3)+" "+String(reedAlarmtoggle));
 }
 
-void setSwitch(byte nr, boolean set) {
+void setSwitch(uint8_t nr, boolean set) {
   DEBUG1_PRINT("Set ");
   DEBUG1_PRINT(nr);
   if (pinState[nr] ^ set) {
@@ -2329,7 +2334,7 @@ void setSwitch(byte nr, boolean set) {
   yield();
 }
 
-void setPwm(byte nr, byte set) {
+void setPwm(uint8_t nr, uint8_t set) {
   DEBUG_PRINTLN("test PWM " + String(nr) + " " + String(para.pin[nr]));
   if (para.pin[nr] == PIN_PWM) {
     switch (set) {
@@ -2367,7 +2372,7 @@ void setAlarm() {
     timerAlarmstate.deactivate();
     digitalWrite(ledPin, !ledPinOn);
   }
-  for (byte i = 0; i < PIN_MAX; i++) {
+  for (uint8_t i = 0; i < PIN_MAX; i++) {
     if (para.pin[i] == PIN_ACTOR)
       setSwitch(i, reedActor & (1 << i));
   }
@@ -2375,7 +2380,7 @@ void setAlarm() {
 
 void Alarmloop() {
   int timer = millis();
-  for (byte i = 0; i < PIN_MAX; i++) {
+  for (uint8_t i = 0; i < PIN_MAX; i++) {
     if (para.pin[i] == PIN_SENSOR || para.pin[i] == PIN_ALARM) {
       int reedTemp = digitalRead(Pin[i]);
       if (reedTemp) {
@@ -2412,7 +2417,7 @@ void restartDelay() {
 }
 
 void i2cScan(boolean mqtt = false) {
-  byte error, address;
+  uint8_t error, address;
   int nDevices;
   char addr[3] = "00";
   char msg[37];
@@ -2461,7 +2466,7 @@ void i2cScan(boolean mqtt = false) {
   }
 }
 
-void setConfig(byte nr, char receivedChar) {
+void setConfig(uint8_t nr, char receivedChar) {
   if (nr == 1) {
     DEBUG1_PRINT(receivedChar);
     if (receivedChar == '0') {
@@ -2540,7 +2545,7 @@ void setConfig(byte nr, char receivedChar) {
   yield();
 }
 
-void setOSS(byte nr, char receivedChar) {
+void setOSS(uint8_t nr, char receivedChar) {
 
   DEBUG1_PRINT("OSS ");
   DEBUG1_PRINTLN(nr);
@@ -2565,7 +2570,7 @@ void setArmed(boolean set) {
   reedAlarmstate = 0;
   DEBUG1_PRINT("Armed ");
   if (set) {
-    for (byte i = 0; i < PIN_MAX; i++) {
+    for (uint8_t i = 0; i < PIN_MAX; i++) {
       if (para.pin[i] == PIN_ALARM) {
         reedAlarmstate = reedAlarmstate | (1 << i);
       }
@@ -2576,7 +2581,7 @@ void setArmed(boolean set) {
   yield();
 }
 
-void setActor(byte nr, boolean set) {
+void setActor(uint8_t nr, boolean set) {
   DEBUG1_PRINT("Actor ");
   if (set) {
     reedActor = reedActor | nr;
@@ -2588,13 +2593,13 @@ void setActor(byte nr, boolean set) {
   yield();
 }
 
-void callbackOSS(byte* payload, unsigned int mLength) {
+void callbackOSS(uint8_t* payload, unsigned int mLength) {
   if (mLength == 1 and payload[0] < 5) {
     //bmp.setOversampling(payload[0], 1, 1);
   }
 }
 
-void set(char request, byte nr, char payload) {
+void set(char request, uint8_t nr, char payload) {
   if (request == 'C') {
     setConfig(nr, payload);
   } else if (request == 'O') {
@@ -2610,7 +2615,7 @@ void set(char request, byte nr, char payload) {
   }
 }
 
-void callback(char* topic, byte* payload, unsigned int mLength) {
+void callback(char* topic, uint8_t* payload, unsigned int mLength) {
   char receivedChar = (char)payload[0];
   cmessage[0] = '[';
   cmessage[1] = '\0';
@@ -2621,7 +2626,7 @@ void callback(char* topic, byte* payload, unsigned int mLength) {
   cmessage[len + 1] = '\0';
   char slash = topic[strlen(topic) - 3];
   char request = topic[strlen(topic) - 2];
-  byte nr = topic[strlen(topic) - 1] - '0';
+  uint8_t nr = topic[strlen(topic) - 1] - '0';
   //DEBUG1_PRINT(slash);
   //DEBUG1_PRINT(request);
   //DEBUG1_PRINTLN(nr);
@@ -2663,7 +2668,7 @@ void callback(char* topic, byte* payload, unsigned int mLength) {
 #define serialKeypadEnd '#'
 #define serialPosMax 30
 char serialIn[serialPosMax + 1];
-byte serialPos = 0;
+uint8_t serialPos = 0;
 
 
 void serialInSet(char in) {
@@ -2676,7 +2681,7 @@ void serialInSet(char in) {
   }
 }
 
-String base64_encode(unsigned char const* bytes_to_encode, unsigned int in_len) {
+String base64_encode(unsigned char const* uint8_ts_to_encode, unsigned int in_len) {
   static const String base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   String ret;
   int i = 0;
@@ -2685,7 +2690,7 @@ String base64_encode(unsigned char const* bytes_to_encode, unsigned int in_len) 
   unsigned char char_array_4[4];
   ret.reserve(60);
   while (in_len--) {
-    char_array_3[i++] = *(bytes_to_encode++);
+    char_array_3[i++] = *(uint8_ts_to_encode++);
     if (i == 3) {
       char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
       char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
@@ -2731,12 +2736,12 @@ void readInput() {
         //DEBUG3_PRINT("Serial out: ");
         //DEBUG3_PRINTLN(serialIn);
         SHA256 crypto;
-        byte sha256hash[SHA256_SIZE];
+        uint8_t sha256hash[SHA256_SIZE];
         crypto.doUpdate(serialIn);  //, serialPos-3);
         crypto.doFinal(sha256hash);
 
-        /* hash now contains our 32 byte hash */
-        for (byte i = 0; i < SHA256_SIZE; i++) {
+        /* hash now contains our 32 uint8_t hash */
+        for (uint8_t i = 0; i < SHA256_SIZE; i++) {
           //if (sha256hash[i]<0x10) { Serial.print('0'); }
           //Serial.print(sha256hash[i], HEX);
         }
@@ -2756,7 +2761,7 @@ void readInput() {
     }
     if (!erg) {
       char request = serialIn[0];
-      byte nr = serialIn[1] - '0';
+      uint8_t nr = serialIn[1] - '0';
       char payload = serialIn[2];
 
       if (request == 'c') {
@@ -2802,14 +2807,14 @@ void readInput() {
         set(request, nr, payload);
       } else if (request == 'I') {
         #ifdef USE_IR      
-          send_ir(nr, (byte*)serialIn + 2, serialPos - 2);
+          send_ir(nr, (uint8_t*)serialIn + 2, serialPos - 2);
         #endif          
       } else if (request == 'M') {
         #ifdef USE_NEOPIXEL
           if (serialIn[1] == 'A') {
-            pixelRgb(0, (byte*)serialIn + 2, serialPos - 2, NEOPIXEL_COUNT - 1);
+            pixelRgb(0, (uint8_t*)serialIn + 2, serialPos - 2, NEOPIXEL_COUNT - 1);
           } else {
-            pixelRgb(nr, (byte*)serialIn + 2, serialPos - 2);
+            pixelRgb(nr, (uint8_t*)serialIn + 2, serialPos - 2);
           }
         #endif
       }
@@ -2820,13 +2825,13 @@ void readInput() {
 }
 
 void setupPinmode() {
-  byte i2csda = 0;
-  byte i2cscl = 0;
+  uint8_t i2csda = 0;
+  uint8_t i2cscl = 0;
   para.i2c = 0;
   para.onewire = 0;
   pwmPin = -1;
   ledPin = -1;
-  for (byte i = 0; i < PIN_MAX; ++i) {
+  for (uint8_t i = 0; i < PIN_MAX; ++i) {
     switch (para.pin[i]) {
       case PIN_SENSOR:
       case PIN_ALARM:
@@ -2950,7 +2955,7 @@ void setupI2c(boolean rescan) {
     }
   #endif
   #ifdef USE_ADS1X15
-    for (byte addr = 0; addr < 3; addr++)
+    for (uint8_t addr = 0; addr < 3; addr++)
     if (!adsActive[addr]) {
       if (addr == 0) adsActive[addr] = ads[addr].begin(72);
       if (addr == 1) adsActive[addr] = ads[addr].begin(73);
@@ -3016,7 +3021,7 @@ void pixelLoop() {
   }
 }
 
-void pixelSet(uint16_t nr, byte type) {
+void pixelSet(uint16_t nr, uint8_t type) {
   uint8_t r = 0, g = 0, b = 0;
   switch (type) {
     case PIXEL_ON:
@@ -3041,13 +3046,13 @@ void pixelSet(uint16_t nr, byte type) {
 }
 #endif
 
-void pixelRgb(byte nr, byte* payload, unsigned int mLength, byte to_nr) {
+void pixelRgb(uint8_t nr, uint8_t* payload, unsigned int mLength, uint8_t to_nr) {
 #ifdef USE_NEOPIXEL
   if (mLength == 1) {
     pixelSet(nr, payload[0] - '0');
   } else {
     uint32_t c = 0;  //payload[0]-'0';
-    for (byte i = 0; i < 6; i++) {
+    for (uint8_t i = 0; i < 6; i++) {
       // get current character then increment
       char rgb = payload[i];
       // transform hex character to the 4bit equivalent number, using the ascii table indexes
@@ -3061,21 +3066,21 @@ void pixelRgb(byte nr, byte* payload, unsigned int mLength, byte to_nr) {
     Serial.print(" C ");
     Serial.print(c, HEX);
     Serial.println("RGB");
-    for (byte i = nr; i == nr || i <= to_nr; i++) {
+    for (uint8_t i = nr; i == nr || i <= to_nr; i++) {
       strip.setPixelColor(i, c);  //  Set pixel's color (in RAM)
     }
   }
   pixelChanged = 1;
 #endif
 }
-void pixelRgb(byte nr, byte* payload, unsigned int mLength) {
+void pixelRgb(uint8_t nr, uint8_t* payload, unsigned int mLength) {
   pixelRgb(nr, payload, mLength, 0);
 }
 
-void pixelBrightness(byte nr, byte* payload, unsigned int mLength) {
+void pixelBrightness(uint8_t nr, uint8_t* payload, unsigned int mLength) {
 #ifdef USE_NEOPIXEL
   uint8_t c = 0;  //payload[0]-'0';
-  for (byte i = 0; i < 2; i++) {
+  for (uint8_t i = 0; i < 2; i++) {
     // get current character then increment
     char rgb = payload[i];
     // transform hex character to the 4bit equivalent number, using the ascii table indexes
@@ -3134,11 +3139,11 @@ void loop_ir(void) {
     irrecv.resume();  // Receive the next value
   }
 }
-void send_ir(char type, byte* input, unsigned int mLength) {
+void send_ir(char type, uint8_t* input, unsigned int mLength) {
   uint64_t c = 0;
   int t = 0;
 
-  for (byte i = 0; i < 2; i++) {
+  for (uint8_t i = 0; i < 2; i++) {
     // get current character then increment
     char rgb = input[i];
     // transform hex character to the 4bit equivalent number, using the ascii table indexes
@@ -3148,7 +3153,7 @@ void send_ir(char type, byte* input, unsigned int mLength) {
     // shift 4 to make space for new digit, and add the 4 bits of the new digit
     t = (t << 4) | (rgb & 0xF);
   }
-  for (byte i = 2; i < mLength; i++) {
+  for (uint8_t i = 2; i < mLength; i++) {
     // get current character then increment
     char rgb = input[i];
     // transform hex character to the 4bit equivalent number, using the ascii table indexes
@@ -3288,7 +3293,7 @@ void setup() {
   DEBUG1_PRINTLN(board);
   // getSystem();
   getPara();
-  // byte i;
+  // uint8_t i;
   DEBUG1_PRINTLN("getPara");
 
   setupPinmode();
